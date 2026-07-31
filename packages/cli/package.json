@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
   "license": "Apache-2.0",
   "engines": {
@@ -20,7 +20,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run --passWithNoTests",
