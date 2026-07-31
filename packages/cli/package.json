@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/cli",
-  "version": "1.0.3",
-  "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
+  "version": "1.0.6",
+  "description": "CLI for PrismaKit \u2014 generate modules, codegen relation aliases, validate compose",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=20"

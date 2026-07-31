@@ -3,12 +3,28 @@ export {
   createRepository,
   createPrismaRepository,
   type RepositoryOptions,
+  type RepositoryOptionsFromTypes,
   type RepositoryDeps,
   type RepositoryInstance,
+  type RepositoryInstanceFromTypes,
+  type RepositoryApiFromTypes,
+  type RepositoryCtorFromTypes,
   type PrismaRepositoryInstance,
   type PrismaClientLike,
   type DefaultToPayload,
 } from './create-repository';
+
+export type {
+  RepoPayloadHKT,
+  ApplyRepoPayload,
+  RepoTypesDefinition,
+  ToPayloadFromTypes,
+  PayloadFromTypes,
+} from './types/repo-types.type';
+
+export type {
+  RepositoryApi,
+} from './types/repository-api.type';
 
 // Cache
 export type { CacheAdapter } from './cache/cache-adapter.interface';

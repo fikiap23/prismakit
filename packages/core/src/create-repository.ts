@@ -21,6 +21,11 @@ import type {
 import type { PaginatedResult } from './types/paginated-result.type';
 import type { PrismaModelDelegate } from './types/prisma-delegate.type';
 import type { InferRepositoryPayload } from './types/infer-repository-payload.type';
+import type {
+  RepositoryApiFromTypes,
+  RepositoryCtorFromTypes,
+} from './types/repository-api.type';
+import type { RepoTypesDefinition, RepoPayloadHKT } from './types/repo-types.type';
 import {
   assertLockPrerequisites,
   queryRowForUpdate,
@@ -41,7 +46,11 @@ const STAMPEDE_MAX_RETRIES = 3;
 
 const DEFAULT_CACHE_TTL = 86400;
 
-/** Default `toPayload` when callers omit it (identity cast). */
+/**
+ * Default `toPayload` when callers omit it (identity cast).
+ * Prefer {@link RepoTypesDefinition} so return types stay precise without a
+ * runtime `toPayload` implementation.
+ */
 export type DefaultToPayload<TSelect extends object> = <T extends TSelect>(
   data: unknown,
 ) => unknown;
@@ -84,6 +93,25 @@ export type RepositoryOptions<
   toPayload?: TToPayload;
   scalarFields?: Record<string, string>;
 };
+
+/**
+ * Options when using the strong {@link RepoTypesDefinition} API.
+ *
+ * Uses {@link DefaultToPayload} for the options slot on purpose — payload
+ * precision comes from {@link RepositoryApiFromTypes} / the HKT on the types
+ * bag, not from stuffing `ToPayloadFromTypes` into this constrained slot
+ * (that intersection often breaks overload resolution → `any` in IDEs).
+ */
+export type RepositoryOptionsFromTypes<TTypes extends RepoTypesDefinition> =
+  RepositoryOptions<
+    TTypes['select'],
+    TTypes['create'],
+    TTypes['update'],
+    TTypes['where'],
+    TTypes['orderBy'],
+    DefaultToPayload<TTypes['select']>,
+    string
+  >;
 
 type MutationTags<TPayload> =
   | string[]
@@ -138,7 +166,50 @@ function resolveToPayload<
   return ((data: unknown) => data) as TToPayload;
 }
 
+export function createRepository<TTypes extends RepoTypesDefinition>(
+  options: RepositoryOptionsFromTypes<TTypes>,
+): new (deps: RepositoryDeps) => RepositoryApiFromTypes<TTypes>;
 export function createRepository<
+  TSelect extends object = object,
+  TCreateInput = unknown,
+  TUpdateInput = unknown,
+  TWhereInput = unknown,
+  TOrderBy = unknown,
+  TToPayload extends <T extends TSelect>(
+    data: unknown,
+  ) => unknown = DefaultToPayload<TSelect>,
+  TRepoModel extends string = never,
+>(
+  // Refuse types-bag shapes on this overload so they cannot bind as TSelect
+  // (which collapses method returns to `any` in IDEs).
+  options: TSelect extends { payload: RepoPayloadHKT }
+    ? never
+    : RepositoryOptions<
+        TSelect,
+        TCreateInput,
+        TUpdateInput,
+        TWhereInput,
+        TOrderBy,
+        TToPayload,
+        TRepoModel
+      >,
+): new (
+  deps: RepositoryDeps,
+) => RepositoryInstance<
+  TSelect,
+  TCreateInput,
+  TUpdateInput,
+  TWhereInput,
+  TOrderBy,
+  TToPayload,
+  TRepoModel
+>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createRepository(options: RepositoryOptions<any, any, any, any, any, any, any>) {
+  return createRepositoryImpl(options) as any;
+}
+
+function createRepositoryImpl<
   TSelect extends object = object,
   TCreateInput = unknown,
   TUpdateInput = unknown,
@@ -956,7 +1027,7 @@ export type RepositoryInstance<
   TRepoModel extends string = never,
 > = InstanceType<
   ReturnType<
-    typeof createRepository<
+    typeof createRepositoryImpl<
       TSelect,
       TCreateInput,
       TUpdateInput,
@@ -967,6 +1038,15 @@ export type RepositoryInstance<
     >
   >
 >;
+
+/**
+ * Instance type for the strong {@link RepoTypesDefinition} API.
+ * Explicit {@link RepositoryApiFromTypes} — not `InstanceType` of the impl.
+ */
+export type RepositoryInstanceFromTypes<TTypes extends RepoTypesDefinition> =
+  RepositoryApiFromTypes<TTypes>;
+
+export type { RepositoryApiFromTypes, RepositoryCtorFromTypes };
 
 /** Alias matching myrpc-be naming for easier migration. */
 export const createPrismaRepository = createRepository;

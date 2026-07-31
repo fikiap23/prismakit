@@ -2,16 +2,57 @@
 
 Everything that touches Prisma goes through a repository created with `createRepository` (core) or `createInjectableRepository` (NestJS).
 
-## Creating a repository
+## Creating a repository (strong types)
+
+Pass a **types bag** so select→payload stays precise without a runtime `toPayload`:
 
 ```typescript
 import { Prisma } from '@prisma/client';
-import { createInjectableRepository } from '@prismakit/nestjs';
+import {
+  createInjectableRepository,
+  type RepoPayloadHKT,
+} from '@prismakit/nestjs';
 
-export const UserRepository = createInjectableRepository({
+type UserPayloadOf<S> = S extends Prisma.UserSelect
+  ? Prisma.UserGetPayload<{ select: S }>
+  : never;
+
+interface UserPayloadHKT extends RepoPayloadHKT {
+  type(): UserPayloadOf<this['_select']>;
+}
+
+type UserTypes = {
+  select: Prisma.UserSelect;
+  create: Prisma.UserCreateInput;
+  update: Prisma.UserUpdateInput;
+  where: Prisma.UserWhereInput;
+  orderBy: Prisma.UserOrderByWithRelationInput;
+  payload: UserPayloadHKT;
+};
+
+export const UserRepository = createInjectableRepository<UserTypes>({
   model: 'user',
   scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400, sensitiveFields: ['password'] },
+  lock: 'users',
+});
+
+export type UserRepository = InstanceType<typeof UserRepository>;
+```
+
+`getById({ select: { id: true, email: true } })` then returns
+`Prisma.UserGetPayload<{ select: { id: true; email: true } }> | null`.
+
+### Minimal (no payload precision)
+
+Omitting the types bag keeps the factory thin, but method results are `unknown`
+unless you supply a typed `toPayload`. Prefer the types bag above for app code.
+
+```typescript
+export const UserRepository = createInjectableRepository({
+  model: 'user',
+  scalarFields: Prisma.UserScalarFieldEnum,
+  cache: { ttl: 86400 },
   lock: 'users',
 });
 ```
@@ -26,7 +67,7 @@ export const UserRepository = createInjectableRepository({
 | `lock` | `RepositoryLockConfig \| string` | Row lock config, or DB table name (`@@map`) resolved from schema. |
 | `schemaPath` | `string` | Path to `schema.prisma` (lock validation / schema helpers). |
 | `getDelegate` | `(client) => delegate` | Optional. Defaults to `(c) => c[model]`. |
-| `toPayload` | `(data) => payload` | Optional. Defaults to identity cast. |
+| `toPayload` | `(data) => payload` | Optional. Defaults to identity cast (use types bag instead). |
 
 ### Shorthands
 

@@ -19,9 +19,29 @@ Controller → Service → Repository → Prisma / CacheAdapter
 
 ```typescript
 import { Prisma } from '@prisma/client';
-import { createInjectableRepository } from '@prismakit/nestjs';
+import {
+  createInjectableRepository,
+  type RepoPayloadHKT,
+} from '@prismakit/nestjs';
 
-export const FeatureRepository = createInjectableRepository({
+type FeaturePayloadOf<S> = S extends Prisma.FeatureSelect
+  ? Prisma.FeatureGetPayload<{ select: S }>
+  : never;
+
+interface FeaturePayloadHKT extends RepoPayloadHKT {
+  type(): FeaturePayloadOf<this['_select']>;
+}
+
+type FeatureTypes = {
+  select: Prisma.FeatureSelect;
+  create: Prisma.FeatureCreateInput;
+  update: Prisma.FeatureUpdateInput;
+  where: Prisma.FeatureWhereInput;
+  orderBy: Prisma.FeatureOrderByWithRelationInput;
+  payload: FeaturePayloadHKT;
+};
+
+export const FeatureRepository = createInjectableRepository<FeatureTypes>({
   model: 'feature',
   scalarFields: Prisma.FeatureScalarFieldEnum,
   cache: { ttl: 60 * 60 * 24 },
@@ -29,7 +49,8 @@ export const FeatureRepository = createInjectableRepository({
 });
 ```
 
-`getDelegate` / `toPayload` default from `model`.
+Types bag (`payload` HKT) keeps `GetPayload` precision without a runtime `toPayload`.
+`getDelegate` defaults from `model`.
 
 Optional allowlist:
 

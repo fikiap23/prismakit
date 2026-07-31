@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6]
+
+### Fixed
+- Types-bag repositories no longer collapse to `any` in IDEs — public API is an explicit `RepositoryApi` / `ApplyRepoPayload` surface (not `InstanceType` of the impl)
+- Loose overload can no longer steal a types-bag as `TSelect`
+
+## [1.0.5]
+
+### Fixed
+- Select→payload typing now uses `RepoPayloadHKT` so Prisma `GetPayload` stays precise (generic `payload` functions collapsed to `unknown`)
+
+### Changed
+- `RepoTypesDefinition.payload` must be a {@link RepoPayloadHKT} interface (not a generic function)
+
+## [1.0.4]
+
+### Added
+- `RepoTypesDefinition` / `ToPayloadFromTypes` — strong select→payload typing bag for thin repositories (no runtime `toPayload`)
+- `createRepository` / `createInjectableRepository` overload accepting `RepoTypesDefinition`
+
+### Fixed
+- Thin repository usage can keep Prisma `GetPayload` precision via a single types bag
+
 ## [0.1.0] — 2026-07-31
 
 ### Added
