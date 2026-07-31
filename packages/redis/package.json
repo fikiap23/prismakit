@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/redis",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Redis CacheAdapter for @prismakit/core",
   "license": "Apache-2.0",
   "engines": {
@@ -44,5 +44,20 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fikiap23/prismakit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fikiap23/prismakit/issues"
+  },
+  "homepage": "https://github.com/fikiap23/prismakit/tree/master/packages/redis#readme",
+  "keywords": [
+    "prisma",
+    "redis",
+    "cache",
+    "ioredis",
+    "prismakit"
+  ]
 }

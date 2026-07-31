@@ -1,7 +1,7 @@
 # PrismaKit
 
 Prisma repository kit with **cache-aside**, **auto-compose**, and **row locks**.  
-Extracted from production NestJS patterns — not a Prisma fork.
+Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 
 ## Packages
 

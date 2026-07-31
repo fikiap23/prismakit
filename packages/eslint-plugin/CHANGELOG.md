@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 1.0.1
+
+### Patch Changes
+
+- Improve npm package READMEs and package metadata (repository, homepage, keywords).
+
 ## 1.0.0
 
 ### Minor Changes

@@ -1,5 +1,14 @@
 # @prismakit/nestjs
 
+## 1.0.1
+
+### Patch Changes
+
+- Improve npm package READMEs and package metadata (repository, homepage, keywords).
+- Updated dependencies
+  - @prismakit/core@1.0.1
+  - @prismakit/redis@1.0.1
+
 ## 1.0.0
 
 ### Minor Changes

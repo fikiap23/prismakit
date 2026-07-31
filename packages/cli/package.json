@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
   "license": "Apache-2.0",
   "engines": {
@@ -45,5 +45,19 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fikiap23/prismakit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fikiap23/prismakit/issues"
+  },
+  "homepage": "https://github.com/fikiap23/prismakit/tree/master/packages/cli#readme",
+  "keywords": [
+    "prisma",
+    "cli",
+    "codegen",
+    "prismakit"
+  ]
 }
