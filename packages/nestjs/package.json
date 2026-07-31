@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@prismakit/core": "*"
+    "@prismakit/core": "1.1.0"
   },
   "peerDependencies": {
     "@nestjs/common": ">=10.0.0",
