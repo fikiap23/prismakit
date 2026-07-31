@@ -58,4 +58,7 @@ export {
   type RepoTypesDefinition,
   type ToPayloadFromTypes,
   type PayloadFromTypes,
+  loadPrismaMetaFromDmmf,
+  loadPrismaMetaFromSchema,
+  type PrismaDmmfLike,
 } from '@prismakit/core';

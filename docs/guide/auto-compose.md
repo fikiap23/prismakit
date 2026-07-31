@@ -9,19 +9,25 @@ This keeps cache keys and invalidation per model, and avoids deep nested Prisma 
 On the **source** repository:
 
 1. `model` is set
-2. `scalarFields` is set (usually `Prisma.XScalarFieldEnum`)
+2. `scalarFields` is set **or** Prisma DMMF meta is loaded (then scalars are inferred)
 3. Nest: repositories are registered as providers (they self-register into `RepositoryRegistry`)
 4. Related model repositories are also registered
 
 ```typescript
+// Preferred: load DMMF once at bootstrap
+PrismaKitModule.forRoot({
+  prisma,
+  dmmf: Prisma.dmmf, // from generated client
+});
+
 export const UserRepository = createInjectableRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
+  // scalarFields optional when dmmf is loaded
 });
 
 export const PostRepository = createInjectableRepository({
   model: 'post',
-  scalarFields: Prisma.PostScalarFieldEnum,
+  scalarFields: Prisma.PostScalarFieldEnum, // still fine to pass explicitly
 });
 ```
 
@@ -41,33 +47,46 @@ const post = await this.posts.getThrowById({
 
 What happens:
 
-1. `splitSelect` keeps scalars (+ FK) for the Prisma query
+1. `splitSelect` keeps scalars (+ FK fields from DMMF) for the Prisma query
 2. Relation keys are loaded via the target repository (`getMany` / lookups)
 3. Results are merged into the payload
 
-## FK conventions
+## Free naming (DMMF)
 
-| Relation | FK field expected |
-|----------|-------------------|
-| To-one (`author`) | `authorId` on the source |
-| To-many | `${sourceModel}Id` on the target (e.g. `postId`) |
+With `dmmf: Prisma.dmmf` (Prisma 5/6) **or** `schemaPath` (recommended on Prisma 7), PrismaKit reads:
 
-If your schema uses different names, map them with relation aliases.
+| Need | Source |
+|------|--------|
+| To-one FK | `relationFromFields` / `@relation(fields: …)` (any name) |
+| To-many child FK | Opposite relation's `relationFromFields` |
+| Target model | Relation field type → client key (`User` → `user`) |
+| Primary key | `@id` / single-field `@@id` |
 
-## Relation aliases
+```typescript
+PrismaKitModule.forRoot({
+  prisma,
+  schemaPath: 'prisma/schema.prisma', // Prisma 7: no Prisma.dmmf
+  // dmmf: Prisma.dmmf,               // Prisma 5/6
+});
+```
 
-When the Prisma relation field name does not match the registry `model` key:
+Schema naming can match normal Prisma Client usage — no `${relation}Id` convention required.
+
+Without meta, the kit falls back to `${relKey}Id` / `${sourceModel}Id` heuristics.
+
+## Relation aliases (optional)
+
+Aliases remain for edge cases when DMMF is not loaded, or for overrides:
 
 ```typescript
 import { setRelationModelAliases } from '@prismakit/core';
 
 setRelationModelAliases({
   settings: 'operationalSetting',
-  uploadedByUser: 'user',
 });
 ```
 
-Or generate suggestions from your schema:
+Or generate suggestions:
 
 ```bash
 npx prismakit codegen --write
@@ -86,6 +105,7 @@ Or at Nest boot:
 ```typescript
 PrismaKitModule.forRoot({
   prisma,
+  dmmf: Prisma.dmmf,
   validateCompose: true,
 });
 ```

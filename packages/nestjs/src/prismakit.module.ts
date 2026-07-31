@@ -11,9 +11,12 @@ import {
 import {
   assertSelectComposeValid,
   AutoComposer,
+  loadPrismaMetaFromDmmf,
+  loadPrismaMetaFromSchema,
   setRegisteredCacheModels,
   type CacheAdapter,
   type PrismaClientLike,
+  type PrismaDmmfLike,
   RepositoryRegistry,
 } from '@prismakit/core';
 
@@ -29,7 +32,15 @@ export type PrismaKitModuleOptions = {
   prisma: PrismaClientLike;
   /** Optional cache backend (e.g. RedisCacheAdapter). */
   cache?: CacheAdapter;
-  /** Path to prisma/schema.prisma for lock/cache validation helpers. */
+  /**
+   * Prisma DMMF (`Prisma.dmmf` on Prisma 5/6). Optional on Prisma 7 —
+   * prefer `schemaPath` which loads relation FKs from `schema.prisma`.
+   */
+  dmmf?: PrismaDmmfLike;
+  /**
+   * When set (and `dmmf` is omitted), load Prisma meta from this schema file
+   * so auto-compose / locks get free FK naming.
+   */
   schemaPath?: string;
   /** When true, run assertSelectComposeValid on module init. */
   validateCompose?: boolean;
@@ -48,9 +59,14 @@ export type PrismaKitModuleAsyncOptions = {
   inject?: unknown[];
 };
 
-function applyCacheModels(options: PrismaKitModuleOptions): void {
+function applyModuleOptions(options: PrismaKitModuleOptions): void {
   if (options.cacheModels) {
     setRegisteredCacheModels(options.cacheModels);
+  }
+  if (options.dmmf) {
+    loadPrismaMetaFromDmmf(options.dmmf);
+  } else if (options.schemaPath) {
+    loadPrismaMetaFromSchema(options.schemaPath);
   }
 }
 
@@ -65,7 +81,7 @@ export class PrismaKitModule implements OnModuleInit {
 
   onModuleInit(): void {
     if (this.options) {
-      applyCacheModels(this.options);
+      applyModuleOptions(this.options);
     }
     if (!this.options?.validateCompose) return;
     assertSelectComposeValid(process.cwd());
@@ -80,7 +96,7 @@ export class PrismaKitModule implements OnModuleInit {
    * `PRISMAKIT_PRISMA` is available for InjectableRepository internals.
    */
   static forRoot(options: PrismaKitModuleOptions): DynamicModule {
-    applyCacheModels(options);
+    applyModuleOptions(options);
     return {
       module: PrismaKitModule,
       global: true,
@@ -95,7 +111,7 @@ export class PrismaKitModule implements OnModuleInit {
         provide: PRISMAKIT_OPTIONS,
         useFactory: async (...args: unknown[]) => {
           const opts = await asyncOptions.useFactory(...args);
-          applyCacheModels(opts);
+          applyModuleOptions(opts);
           return opts;
         },
         inject: (asyncOptions.inject ?? []) as never[],

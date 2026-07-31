@@ -31,11 +31,15 @@ import {
   queryRowForUpdate,
 } from './lock/row-lock';
 import { validateLockConfig } from './lock/validate-lock-config';
-import { buildLockConfigFromSchema } from './lock/build-lock-config';
+import {
+  buildLockConfigFromMeta,
+  buildLockConfigFromSchema,
+} from './lock/build-lock-config';
 import { paginator, type PaginateFunction } from './pagination/paginator';
 import { splitSelect } from './utils/split-select';
 import { AutoComposer } from './auto-composer';
 import { RepositoryRegistry } from './repository-registry';
+import { getModelMeta } from './schema/prisma-meta';
 
 const paginate: PaginateFunction = paginator({});
 
@@ -81,8 +85,11 @@ export type RepositoryOptions<
   model?: TRepoModel;
   /** Cache config, or `true` for `{ ttl: 86400, sensitiveFields: ['password'] }`. */
   cache?: CacheOptions | true;
-  /** Lock config, or a DB table name resolved via `buildLockConfigFromSchema`. */
-  lock?: RepositoryLockConfig | string;
+  /**
+   * Lock config, DB table name / client model key (resolved via meta or schema),
+   * or `true` to resolve from Prisma meta / schema using `model`.
+   */
+  lock?: RepositoryLockConfig | string | true;
   schemaPath?: string;
   /**
    * Prisma model delegate accessor. Defaults to `(client) => client[model]`
@@ -91,7 +98,15 @@ export type RepositoryOptions<
   getDelegate?: (client: PrismaClientLike) => PrismaModelDelegate;
   /** Maps raw Prisma results to the public payload type. Defaults to identity. */
   toPayload?: TToPayload;
+  /**
+   * Scalar field enum for select-split / compose. When omitted, filled from
+   * Prisma meta (`loadPrismaMetaFromDmmf`) for `model` if available.
+   */
   scalarFields?: Record<string, string>;
+  /**
+   * Primary key field for `*ById` / row locks. Defaults to Prisma meta PK or `id`.
+   */
+  primaryKey?: string;
 };
 
 /**
@@ -128,13 +143,54 @@ function resolveCacheOptions(
 }
 
 function resolveLockConfig(
-  lock: RepositoryLockConfig | string | undefined,
+  lock: RepositoryLockConfig | string | true | undefined,
   schemaPath?: string,
+  model?: string,
 ): RepositoryLockConfig | undefined {
+  if (lock === true) {
+    if (!model) {
+      throw new Error(
+        '[createRepository] lock: true requires model so table/columns can be resolved',
+      );
+    }
+    return (
+      buildLockConfigFromMeta(model) ??
+      buildLockConfigFromSchema(model, schemaPath)
+    );
+  }
   if (typeof lock === 'string') {
-    return buildLockConfigFromSchema(lock, schemaPath);
+    return (
+      buildLockConfigFromMeta(lock) ??
+      buildLockConfigFromSchema(lock, schemaPath)
+    );
   }
   return lock;
+}
+
+function resolveScalarFields(
+  model: string | undefined,
+  scalarFields?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (scalarFields) return scalarFields;
+  if (!model) return undefined;
+  const meta = getModelMeta(model);
+  return meta ? { ...meta.scalarFields } : undefined;
+}
+
+function resolvePrimaryKey(
+  model: string | undefined,
+  primaryKey?: string,
+): string {
+  if (primaryKey) return primaryKey;
+  if (model) {
+    const fromMeta = getModelMeta(model)?.primaryKey;
+    if (fromMeta) return fromMeta;
+  }
+  return 'id';
+}
+
+function idWhere(primaryKey: string, id: string): Record<string, string> {
+  return { [primaryKey]: id };
 }
 
 function resolveGetDelegate(
@@ -237,9 +293,22 @@ function createRepositoryImpl<
   >;
 
   const cacheOpts = resolveCacheOptions(options.cache);
-  const lockConfig = resolveLockConfig(options.lock, options.schemaPath);
+  const lockConfig = resolveLockConfig(
+    options.lock,
+    options.schemaPath,
+    options.model,
+  );
   const getDelegate = resolveGetDelegate(options.model, options.getDelegate);
   const toPayload = resolveToPayload<TSelect, TToPayload>(options.toPayload);
+  const scalarFields = resolveScalarFields(options.model, options.scalarFields);
+  const primaryKey = resolvePrimaryKey(options.model, options.primaryKey);
+  const relationLocalFks = (() => {
+    const meta = options.model ? getModelMeta(options.model) : undefined;
+    if (!meta) return undefined;
+    return Object.fromEntries(
+      Object.entries(meta.relations).map(([k, v]) => [k, v.localFields]),
+    );
+  })();
 
   const cacheConfigured = !!options.model && !!cacheOpts;
   const defaultTtl = cacheOpts?.ttl ?? 300;
@@ -256,7 +325,7 @@ function createRepositoryImpl<
     validateCacheConfig(modelName);
   }
 
-  if (options.scalarFields && !options.model) {
+  if (scalarFields && !options.model) {
     console.warn(
       '[createRepository] scalarFields without model — auto-compose disabled. Add model to repository config.',
     );
@@ -531,7 +600,7 @@ function createRepositoryImpl<
       if (options.model && this.deps.registry) {
         this.deps.registry.register(options.model, {
           repository: this,
-          scalarFields: options.scalarFields,
+          scalarFields,
         });
       }
     }
@@ -548,11 +617,15 @@ function createRepositoryImpl<
       select: any,
       queryFn: (dbSelect: any) => Promise<any>,
     ): Promise<any> {
-      if (!select || !options.scalarFields) {
+      if (!select || !scalarFields) {
         return queryFn(select);
       }
 
-      const { dbSelect, relations } = splitSelect(select, options.scalarFields);
+      const { dbSelect, relations } = splitSelect(
+        select,
+        scalarFields,
+        relationLocalFks,
+      );
       const result = await queryFn(dbSelect);
 
       if (
@@ -646,6 +719,7 @@ function createRepositoryImpl<
             id,
             select: dbSelect,
             lock,
+            idColumn: primaryKey,
           });
           return toPayload<T>(result) as Payload<T>;
         }
@@ -676,7 +750,7 @@ function createRepositoryImpl<
         }
 
         const result = await getModel(this.deps.prisma, tx).findUnique({
-          where: { id },
+          where: idWhere(primaryKey, id),
           select: dbSelect,
         });
         if (useCache) {
@@ -707,10 +781,11 @@ function createRepositoryImpl<
             id,
             select: dbSelect,
             lock,
+            idColumn: primaryKey,
           });
           if (result === null) {
             await getModel(this.deps.prisma, tx).findUniqueOrThrow({
-              where: { id },
+              where: idWhere(primaryKey, id),
               select: dbSelect,
             });
           }
@@ -732,7 +807,7 @@ function createRepositoryImpl<
             recordCacheDebug('getThrowById', 'HIT', modelName);
             if (cached.data === null) {
               await getModel(this.deps.prisma, tx).findUniqueOrThrow({
-                where: { id },
+                where: idWhere(primaryKey, id),
                 select: dbSelect,
               });
             }
@@ -744,7 +819,7 @@ function createRepositoryImpl<
         }
 
         const result = await getModel(this.deps.prisma, tx).findUniqueOrThrow({
-          where: { id },
+          where: idWhere(primaryKey, id),
           select: dbSelect,
         });
         if (useCache) {
@@ -957,7 +1032,7 @@ function createRepositoryImpl<
     }): Promise<Payload<T>> {
       return this.processSelectAndCompose(select, async (dbSelect) => {
         const result = await getModel(this.deps.prisma, tx).update({
-          where: { id },
+          where: idWhere(primaryKey, id),
           data,
           select: dbSelect,
         });
@@ -992,7 +1067,7 @@ function createRepositoryImpl<
     }): Promise<Payload<T>> {
       return this.processSelectAndCompose(select, async (dbSelect) => {
         const result = await getModel(this.deps.prisma, tx).delete({
-          where: { id },
+          where: idWhere(primaryKey, id),
           select: dbSelect,
         });
         if (!tx && canInvalidate(this.deps.cache)) {

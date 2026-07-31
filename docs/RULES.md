@@ -22,7 +22,7 @@ These rules are the data-access contract for PrismaKit apps.
 | Transactions (Nest) | `TransactionService.execTx(fn, afterCommit?)` |
 | Tx writes | `invalidate: 'none'` then `invalidateCache` in `afterCommit` |
 | User-facing reads | `setCache: true` when repo has cache config |
-| Relations in select | `model` + `scalarFields` on source repo ([auto-compose](guide/auto-compose.md)) |
+| Relations in select | `model` on source repo; load `dmmf: Prisma.dmmf` (or pass `scalarFields`) — [auto-compose](guide/auto-compose.md) |
 | ESLint | `prismakit.configs.recommended` |
 
 ## Layers

@@ -10,6 +10,7 @@ import { createInjectableRepository } from './injectable-repository';
 type RuntimeRepoOptions = {
   model: string;
   scalarFields?: Record<string, string>;
+  primaryKey?: string;
   cache?: RepositoryOptions['cache'];
   lock?: RepositoryOptions['lock'];
   schemaPath?: string;

@@ -31,6 +31,15 @@ describe('splitSelect', () => {
     expect(dbSelect).toEqual({ id: true, name: true, categoryId: true });
     expect(relations).toHaveProperty('category');
   });
+
+  it('uses explicit relation local FKs when provided', () => {
+    const { dbSelect } = splitSelect(
+      { id: true, author: { select: { id: true } } },
+      { id: 'id', authorUserId: 'authorUserId' },
+      { author: ['authorUserId'] },
+    );
+    expect(dbSelect).toEqual({ id: true, authorUserId: true });
+  });
 });
 
 describe('buildLockClause', () => {

@@ -1,9 +1,11 @@
 import { RepositoryRegistry } from '../repository-registry';
+import { getModelMeta } from '../schema/prisma-meta';
 
 /**
  * Maps Prisma relation **field names** to repository registry `model` keys when they differ.
  *
  * Empty by default — apps inject codegen output via `setRelationModelAliases`.
+ * Prefer loading Prisma DMMF via `loadPrismaMetaFromDmmf` so aliases are optional.
  * Consumers may also mutate this object directly.
  */
 export let RELATION_MODEL_ALIASES: Record<string, string> = {};
@@ -30,8 +32,7 @@ export function getRelationModelAliases(): Record<string, string> {
 
 /**
  * Suffix → registry model. Applied when `relKey.endsWith(suffix)` and `relKey !== model`.
- * Empty by default — apps should use `setRelationModelAliases` / CLI codegen for
- * non-obvious relation field → model mappings. Order matters when non-empty.
+ * Empty by default — apps should use Prisma meta / `setRelationModelAliases`.
  */
 export const RELATION_MODEL_SUFFIX_RULES: Readonly<
   Array<{ suffix: string; model: string }>
@@ -65,11 +66,21 @@ export function buildRelationModelCandidates(relKey: string): string[] {
 /**
  * Resolves a Prisma relation field to a registered repository model key.
  * Throws if no repository is registered for any candidate.
+ *
+ * When `sourceModel` is set and Prisma meta is loaded, uses DMMF target first.
  */
 export function resolveRelationModel(
   relKey: string,
   registry: RepositoryRegistry,
+  sourceModel?: string,
 ): string {
+  if (sourceModel) {
+    const fromMeta = getModelMeta(sourceModel)?.relations[relKey]?.targetModel;
+    if (fromMeta && registry.get(fromMeta)) {
+      return fromMeta;
+    }
+  }
+
   for (const model of buildRelationModelCandidates(relKey)) {
     if (registry.get(model)) return model;
   }

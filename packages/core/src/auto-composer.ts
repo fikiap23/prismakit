@@ -1,6 +1,7 @@
 import { splitSelect } from './utils/split-select';
 import { RepositoryRegistry } from './repository-registry';
 import { resolveRelationModel } from './compose/relation-resolver';
+import { getModelMeta } from './schema/prisma-meta';
 
 export class AutoComposer {
   constructor(private readonly registry: RepositoryRegistry) {}
@@ -25,12 +26,21 @@ export class AutoComposer {
     }
 
     const source = this.registry.get(sourceModel);
-    const sourceScalarFields = source?.scalarFields ?? {};
+    const sourceMeta = getModelMeta(sourceModel);
+    const sourceScalarFields = source?.scalarFields ?? sourceMeta?.scalarFields ?? {};
+    const sourcePk = sourceMeta?.primaryKey ?? 'id';
 
     await Promise.all(
       Object.keys(relations).map(async (relKey) => {
-        const targetModel = resolveRelationModel(relKey, this.registry);
+        const relMeta = sourceMeta?.relations[relKey];
+        const targetModel = resolveRelationModel(
+          relKey,
+          this.registry,
+          sourceModel,
+        );
         const target = this.registry.getOrThrow(targetModel);
+        const targetMeta = getModelMeta(targetModel);
+        const targetPk = targetMeta?.primaryKey ?? 'id';
         const relationSelect = relations[relKey];
 
         let targetDbSelect: Record<string, any> | undefined =
@@ -39,20 +49,46 @@ export class AutoComposer {
             : relationSelect.select || relationSelect;
         let targetRelations: Record<string, any> = {};
 
-        if (target.scalarFields && targetDbSelect) {
-          const split = splitSelect(targetDbSelect, target.scalarFields);
+        const targetScalars =
+          target.scalarFields ?? targetMeta?.scalarFields;
+        const targetRelFks = targetMeta
+          ? Object.fromEntries(
+              Object.entries(targetMeta.relations).map(([k, v]) => [
+                k,
+                v.localFields,
+              ]),
+            )
+          : undefined;
+
+        if (targetScalars && targetDbSelect) {
+          const split = splitSelect(
+            targetDbSelect,
+            targetScalars,
+            targetRelFks,
+          );
           targetDbSelect = split.dbSelect as Record<string, any>;
           targetRelations = split.relations;
         }
 
-        const foreignKey = `${relKey}Id`;
-        const isOne = foreignKey in sourceScalarFields;
+        const localFk =
+          relMeta?.localFields[0] ??
+          (`${relKey}Id` in sourceScalarFields ? `${relKey}Id` : undefined);
+
+        const isOne =
+          relMeta?.kind === 'one' || (!relMeta && !!localFk);
 
         if (isOne) {
+          if (!localFk) {
+            entities.forEach((e: any) => {
+              e[relKey] = null;
+            });
+            return;
+          }
+          const fkField = localFk;
           const ids = [
             ...new Set(
               entities
-                .map((e) => e[foreignKey])
+                .map((e) => e[fkField])
                 .filter((id): id is string => !!id),
             ),
           ];
@@ -60,7 +96,7 @@ export class AutoComposer {
           let related: any[] = [];
           if (ids.length) {
             related = await target.repository.getMany({
-              where: { id: { in: ids } },
+              where: { [targetPk]: { in: ids } },
               select: targetDbSelect,
               setCache: true,
             });
@@ -70,26 +106,25 @@ export class AutoComposer {
             }
           }
 
-          const entityMap = new Map(related.map((e) => [e.id, e]));
+          const entityMap = new Map(related.map((e) => [e[targetPk], e]));
           entities.forEach((e: any) => {
-            e[relKey] = e[foreignKey]
-              ? (entityMap.get(e[foreignKey]) ?? null)
+            e[relKey] = e[fkField]
+              ? (entityMap.get(e[fkField]) ?? null)
               : null;
           });
         } else {
-          // to-many: child rows are keyed by `${sourceModel}Id` (e.g. categoryId).
-          // Always select that FK so we can group rows back onto parents —
-          // otherwise related fetches succeed but attach as [].
-          const targetFk = `${sourceModel}Id`;
+          const targetFk =
+            relMeta?.targetFk ?? `${sourceModel}Id`;
+
           if (
             targetDbSelect &&
-            target.scalarFields &&
-            targetFk in target.scalarFields
+            targetScalars &&
+            targetFk in targetScalars
           ) {
             targetDbSelect = { ...targetDbSelect, [targetFk]: true };
           }
 
-          const parentIds = entities.map((e) => e.id);
+          const parentIds = entities.map((e) => e[sourcePk]);
 
           let related: any[] = [];
           if (parentIds.length) {
@@ -114,7 +149,7 @@ export class AutoComposer {
           }
 
           entities.forEach((e: any) => {
-            e[relKey] = entityMap.get(e.id) ?? [];
+            e[relKey] = entityMap.get(e[sourcePk]) ?? [];
           });
         }
       }),

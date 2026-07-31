@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0]
+
+### Added
+- `loadPrismaMetaFromSchema(schemaPath)` / `PrismaKitModule` `schemaPath` (Prisma 7) or `dmmf` (Prisma 5/6)
+- Free FK / relation naming for auto-compose (uses `@relation(fields)`, not `${rel}Id`)
+- `lock: true` and lock resolve by client model key; full column maps from meta
+- Optional `primaryKey` / PK from schema/DMMF for `*ById` and row locks
+- `scalarFields` optional when meta is loaded
+
+### Changed
+- Relation aliases are optional when schema/DMMF meta is present
+- Schema parser reads `@relation(fields/references)` and `@id` for meta
+
 ## [1.0.10]
 
 ### Fixed

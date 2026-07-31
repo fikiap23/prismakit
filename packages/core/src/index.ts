@@ -104,7 +104,7 @@ export {
   assertLockPrerequisites,
   queryRowForUpdate,
 } from './lock/row-lock';
-export { buildLockConfigFromSchema } from './lock/build-lock-config';
+export { buildLockConfigFromSchema, buildLockConfigFromMeta } from './lock/build-lock-config';
 export { validateLockConfig } from './lock/validate-lock-config';
 export type {
   RowLockMode,
@@ -117,6 +117,7 @@ export {
   parsePrismaSchema,
   getSchemaModels,
   findModelByTableName,
+  findModelByName,
   getScalarFields,
   getRelationFields,
   expectedDbColumn,
@@ -125,6 +126,26 @@ export {
   type SchemaFieldKind,
   type SchemaModel,
 } from './schema/parse-prisma-schema';
+
+export {
+  buildPrismaMetaFromDmmf,
+  buildPrismaMetaFromSchemaModels,
+  buildPrismaMetaFromRuntimeDataModel,
+  loadPrismaMetaFromDmmf,
+  loadPrismaMetaFromSchema,
+  setPrismaMeta,
+  clearPrismaMeta,
+  getPrismaMeta,
+  getModelMeta,
+  type PrismaMetaRegistry,
+  type ModelMeta,
+  type RelationMeta,
+  type RelationKind,
+  type PrismaDmmfLike,
+  type DmmfDatamodelLike,
+  type DmmfModelLike,
+  type DmmfFieldLike,
+} from './schema/prisma-meta';
 
 // Pagination
 export { paginator, type PaginateOptions, type PaginateFunction } from './pagination/paginator';

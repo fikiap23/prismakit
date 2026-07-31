@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { RepositoryRegistry } from '../repository-registry';
+import { getPrismaMeta } from '../schema/prisma-meta';
 import { buildRelationModelCandidates } from './relation-resolver';
 
 export interface ComposeValidationIssue {
@@ -44,20 +45,18 @@ function parseRegisteredModels(
   const reposDir = path.join(projectRoot, modulesRoot);
   const models = new Map<string, string>();
   const repoFiles = listFilesRecursive(reposDir, repoFilePattern);
+  const metaLoaded = !!getPrismaMeta();
 
   for (const file of repoFiles) {
     const content = fs.readFileSync(file, 'utf-8');
     const modelMatch = content.match(/model:\s*'([^']+)'/);
-    const hasScalar = /scalarFields:\s*Prisma\.\w+ScalarFieldEnum/.test(
-      content,
-    );
-    if (!hasScalar) continue;
+    if (!modelMatch) continue;
+
+    const hasScalar = /scalarFields:\s*/.test(content);
+    // With Prisma meta, scalarFields are optional for compose.
+    if (!hasScalar && !metaLoaded) continue;
 
     const rel = path.relative(projectRoot, file);
-    if (!modelMatch) {
-      models.set(rel, '');
-      continue;
-    }
     models.set(rel, modelMatch[1]);
   }
 
@@ -97,7 +96,7 @@ function findSelectExportsWithRelations(
 
   for (const file of typeFiles) {
     const content = fs.readFileSync(file, 'utf-8');
-    if (!content.includes('Select')) continue;
+    if (!content.includes('Select') && !content.includes('Where')) continue;
 
     const relationKeys = extractRelationKeysFromSource(content);
     if (relationKeys.length === 0) continue;
@@ -128,9 +127,31 @@ function buildMockRegistry(registeredModels: string[]): RepositoryRegistry {
   return registry;
 }
 
+function resolveRelationForValidate(
+  relKey: string,
+  registry: RepositoryRegistry,
+  preferredSourceModels: string[],
+): string | undefined {
+  const meta = getPrismaMeta();
+  if (meta) {
+    for (const source of preferredSourceModels) {
+      const target = meta[source]?.relations[relKey]?.targetModel;
+      if (target && registry.get(target)) return target;
+    }
+    for (const model of Object.values(meta)) {
+      const target = model.relations[relKey]?.targetModel;
+      if (target && registry.get(target)) return target;
+    }
+  }
+
+  const candidates = buildRelationModelCandidates(relKey);
+  return candidates.find((c) => registry.get(c));
+}
+
 /**
  * Validates that modules using relational select presets have repositories
- * with `model` + `scalarFields`, and that relation keys resolve via the resolver.
+ * with `model` (+ `scalarFields` or loaded Prisma meta), and that relation
+ * keys resolve via meta / aliases.
  */
 export function validateSelectCompose(
   projectRoot: string,
@@ -151,16 +172,6 @@ export function validateSelectCompose(
     ...new Set([...repoModels.values()].filter((m) => m.length > 0)),
   ];
   const registry = buildMockRegistry(registeredModelKeys);
-
-  for (const [repoFile, model] of repoModels.entries()) {
-    if (!model) {
-      issues.push({
-        file: repoFile,
-        message:
-          'Repository has scalarFields but no model — auto-compose is disabled',
-      });
-    }
-  }
 
   const modulesParts = modulesRoot.split(/[/\\]/).filter(Boolean);
   const moduleFolderIndex = modulesParts.length;
@@ -191,20 +202,20 @@ export function validateSelectCompose(
       continue;
     }
 
-    if (!modelsInModule.some((m) => m.length > 0)) {
-      issues.push({
-        file,
-        message: `Module "${moduleDir}" repositories missing model for compose`,
-      });
-    }
-
     for (const relKey of relationKeys) {
-      const candidates = buildRelationModelCandidates(relKey);
-      const resolved = candidates.find((c) => registry.get(c));
+      const resolved = resolveRelationForValidate(
+        relKey,
+        registry,
+        modelsInModule,
+      );
       if (!resolved) {
+        const candidates = buildRelationModelCandidates(relKey);
+        const metaHint = getPrismaMeta()
+          ? ' (check schema meta / registered target repo)'
+          : '';
         issues.push({
           file,
-          message: `Relation "${relKey}" cannot be resolved to a registered repository model (candidates: ${candidates.join(', ')})`,
+          message: `Relation "${relKey}" cannot be resolved to a registered repository model (candidates: ${candidates.join(', ')})${metaHint}`,
         });
       }
     }
