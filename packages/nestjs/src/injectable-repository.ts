@@ -94,8 +94,10 @@ export function createInjectableRepository(
     constructor(
       @Inject(PRISMAKIT_PRISMA) prisma: PrismaClientLike,
       @Optional() @Inject(PRISMAKIT_CACHE) cache?: CacheAdapter,
-      @Optional() registry?: RepositoryRegistry,
-      @Optional() autoCompose?: AutoComposer,
+      // Explicit @Inject required: tsup/esbuild does not emit design:paramtypes,
+      // so Nest cannot resolve class tokens from TypeScript types alone.
+      @Optional() @Inject(RepositoryRegistry) registry?: RepositoryRegistry,
+      @Optional() @Inject(AutoComposer) autoCompose?: AutoComposer,
     ) {
       super({ prisma, cache, registry, autoCompose });
     }
