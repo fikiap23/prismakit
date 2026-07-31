@@ -1,5 +1,11 @@
 # @prismakit/core
 
+## 2.1.0
+
+### Minor Changes
+
+- Conditional repository cache types: `setCache` / `cacheTags` / invalidation only appear when `cache` is configured on the repo.
+
 ## 2.0.0
 
 ### Minor Changes

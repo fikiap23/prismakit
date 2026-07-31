@@ -48,6 +48,7 @@ export {
   type RepositoryApi,
   type RepositoryApiFromTypes,
   type RepositoryApiFromTypeMap,
+  type HasCacheFromOptions,
   type PrismaTypeMapLike,
   type CamelToPascal,
   type PrismaRepositoryInstance,

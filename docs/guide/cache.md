@@ -134,6 +134,21 @@ PrismaKitModule.forRoot({
 
 If a repository enables `cache` for a model not in the list, repository init throws.
 
+## TypeScript DX
+
+Repository method types follow the repo `cache` config:
+
+- With `cache: { … }` or `cache: true` → `setCache`, `cacheTags`, mutation `invalidate`/`tags`, and `invalidateCache` are on the type.
+- Without `cache` → those fields are omitted (IDE will not suggest them).
+
+```typescript
+// no cache → getManyPaginate args have no setCache
+defineRepo({ model: 'sparepart', scalarFields: … });
+
+// cached → setCache / cacheTags available
+defineRepo({ model: 'user', cache: { ttl: 86400 }, scalarFields: … });
+```
+
 ## Redis adapter
 
 ```typescript

@@ -61,7 +61,9 @@ export const ProductRepository = createInjectableRepository({
 });
 ```
 
-Register the returned class in a feature module:
+Register the returned class in a feature module `providers`. Never inject `prisma` into services.
+
+When `cache` is set on the repository options, TypeScript exposes `setCache` / `cacheTags` on reads and invalidation fields on writes. Without `cache`, those options are omitted from the type (see [Cache](./cache.md#typescript-dx)).
 
 ```typescript
 @Module({

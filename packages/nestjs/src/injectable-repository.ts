@@ -5,6 +5,7 @@ import {
   RepositoryRegistry,
   type CacheAdapter,
   type DefaultToPayload,
+  type HasCacheFromOptions,
   type PrismaClientLike,
   type RepositoryOptions,
   type RepositoryOptionsFromTypes,
@@ -47,9 +48,14 @@ import { PRISMAKIT_CACHE, PRISMAKIT_PRISMA } from './tokens';
  * });
  * ```
  */
-export function createInjectableRepository<TTypes extends RepoTypesDefinition>(
-  options: RepositoryOptionsFromTypes<TTypes>,
-): new (...args: never[]) => RepositoryApiFromTypes<TTypes>;
+export function createInjectableRepository<
+  TTypes extends RepoTypesDefinition,
+  const O extends RepositoryOptionsFromTypes<TTypes>,
+>(
+  options: O,
+): new (
+  ...args: never[]
+) => RepositoryApiFromTypes<TTypes, HasCacheFromOptions<O>>;
 export function createInjectableRepository<
   TSelect extends object = object,
   TCreateInput = unknown,

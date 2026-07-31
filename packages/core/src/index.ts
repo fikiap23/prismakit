@@ -28,6 +28,7 @@ export type {
 
 export type {
   RepositoryApiFromTypeMap,
+  HasCacheFromOptions,
 } from './types/repository-api-typemap.type';
 
 export type {

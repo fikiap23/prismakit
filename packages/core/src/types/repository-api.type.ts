@@ -15,107 +15,137 @@ type MutationTags<TPayload> =
   | null
   | ((result: TPayload) => string[] | null);
 
+type CacheIdRead<THasCache extends boolean> = THasCache extends true
+  ? { setCache?: boolean }
+  : {};
+
+type CacheQueryRead<TWhereInput, THasCache extends boolean> =
+  THasCache extends true
+    ? {
+        setCache?: boolean;
+        cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+      }
+    : {};
+
+type CacheMutation<TPayload, THasCache extends boolean> = THasCache extends true
+  ? {
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<TPayload>;
+    }
+  : {};
+
+type InvalidateCacheMethod<THasCache extends boolean> = THasCache extends true
+  ? {
+      invalidateCache(opts?: { id?: string; tags?: string[] }): Promise<void>;
+    }
+  : {};
+
 /**
  * Public repository method surface for the strong types-bag API.
  *
- * Declared explicitly (not via `InstanceType` of the factory impl) so
- * TypeScript / IDEs resolve `ApplyRepoPayload` cleanly instead of collapsing
- * to `any` / `unknown` through deep conditional chains.
+ * `THasCache` controls whether cache-only args (`setCache`, `cacheTags`,
+ * mutation `invalidate`/`tags`) and `invalidateCache` appear — match the
+ * repository `cache` config for better IDE DX.
  */
-export interface RepositoryApi<
+export type RepositoryApi<
   TSelect extends object,
   TCreateInput,
   TUpdateInput,
   TWhereInput,
   TOrderBy,
   TPayload extends RepoPayloadHKT,
-> {
-  invalidateCache(opts?: { id?: string; tags?: string[] }): Promise<void>;
+  THasCache extends boolean = false,
+> = {
+  create<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      data: TCreateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
 
-  create<T extends TSelect>(args: {
-    tx?: ClientLike;
-    data: TCreateInput;
-    select?: T;
-    invalidate?: InvalidateMode;
-    tags?: MutationTags<ApplyRepoPayload<TPayload, T>>;
-  }): Promise<ApplyRepoPayload<TPayload, T>>;
+  getById<T extends TSelect>(
+    params: {
+      id: string;
+      select?: T;
+      tx?: ClientLike;
+      lock?: RowLockOptions;
+    } & CacheIdRead<THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T> | null>;
 
-  getById<T extends TSelect>(params: {
-    id: string;
-    select?: T;
-    tx?: ClientLike;
-    lock?: RowLockOptions;
-    setCache?: boolean;
-  }): Promise<ApplyRepoPayload<TPayload, T> | null>;
+  getThrowById<T extends TSelect>(
+    params: {
+      id: string;
+      select?: T;
+      tx?: ClientLike;
+      lock?: RowLockOptions;
+    } & CacheIdRead<THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
 
-  getThrowById<T extends TSelect>(params: {
-    id: string;
-    select?: T;
-    tx?: ClientLike;
-    lock?: RowLockOptions;
-    setCache?: boolean;
-  }): Promise<ApplyRepoPayload<TPayload, T>>;
+  getFirst<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: T;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T> | null>;
 
-  getFirst<T extends TSelect>(args: {
-    tx?: ClientLike;
-    where?: TWhereInput;
-    select?: T;
-    setCache?: boolean;
-    cacheTags?: string[] | ((where?: TWhereInput) => string[]);
-  }): Promise<ApplyRepoPayload<TPayload, T> | null>;
+  getMany<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: T;
+      orderBy?: TOrderBy;
+      take?: number;
+      skip?: number;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>[]>;
 
-  getMany<T extends TSelect>(args: {
-    tx?: ClientLike;
-    where?: TWhereInput;
-    select?: T;
-    orderBy?: TOrderBy;
-    take?: number;
-    skip?: number;
-    setCache?: boolean;
-    cacheTags?: string[] | ((where?: TWhereInput) => string[]);
-  }): Promise<ApplyRepoPayload<TPayload, T>[]>;
+  getManyPaginate<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: T;
+      orderBy?: TOrderBy;
+      page?: number;
+      pageSize?: number;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<PaginatedResult<ApplyRepoPayload<TPayload, T>>>;
 
-  getManyPaginate<T extends TSelect>(args: {
-    tx?: ClientLike;
-    where?: TWhereInput;
-    select?: T;
-    orderBy?: TOrderBy;
-    page?: number;
-    pageSize?: number;
-    setCache?: boolean;
-    cacheTags?: string[] | ((where?: TWhereInput) => string[]);
-  }): Promise<PaginatedResult<ApplyRepoPayload<TPayload, T>>>;
+  updateById<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      id: string;
+      data: TUpdateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
 
-  updateById<T extends TSelect>(args: {
-    tx?: ClientLike;
-    id: string;
-    data: TUpdateInput;
-    select?: T;
-    invalidate?: InvalidateMode;
-    tags?: MutationTags<ApplyRepoPayload<TPayload, T>>;
-  }): Promise<ApplyRepoPayload<TPayload, T>>;
-
-  deleteById<T extends TSelect>(args: {
-    tx?: ClientLike;
-    id: string;
-    select?: T;
-    invalidate?: InvalidateMode;
-    tags?: MutationTags<ApplyRepoPayload<TPayload, T>>;
-  }): Promise<ApplyRepoPayload<TPayload, T>>;
-}
+  deleteById<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      id: string;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
+} & InvalidateCacheMethod<THasCache>;
 
 /** Repository API derived from a {@link RepoTypesDefinition} bag. */
-export type RepositoryApiFromTypes<TTypes extends RepoTypesDefinition> =
-  RepositoryApi<
-    TTypes['select'],
-    TTypes['create'],
-    TTypes['update'],
-    TTypes['where'],
-    TTypes['orderBy'],
-    TTypes['payload']
-  >;
+export type RepositoryApiFromTypes<
+  TTypes extends RepoTypesDefinition,
+  THasCache extends boolean = false,
+> = RepositoryApi<
+  TTypes['select'],
+  TTypes['create'],
+  TTypes['update'],
+  TTypes['where'],
+  TTypes['orderBy'],
+  TTypes['payload'],
+  THasCache
+>;
 
 /** Constructor returned by Nest / core factories for a types bag. */
-export type RepositoryCtorFromTypes<TTypes extends RepoTypesDefinition> = new (
-  ...args: never[]
-) => RepositoryApiFromTypes<TTypes>;
+export type RepositoryCtorFromTypes<
+  TTypes extends RepoTypesDefinition,
+  THasCache extends boolean = false,
+> = new (...args: never[]) => RepositoryApiFromTypes<TTypes, THasCache>;

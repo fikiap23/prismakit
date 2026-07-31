@@ -25,6 +25,7 @@ import type {
   RepositoryApiFromTypes,
   RepositoryCtorFromTypes,
 } from './types/repository-api.type';
+import type { HasCacheFromOptions } from './types/repository-api-typemap.type';
 import type { RepoTypesDefinition, RepoPayloadHKT } from './types/repo-types.type';
 import {
   assertLockPrerequisites,
@@ -222,9 +223,14 @@ function resolveToPayload<
   return ((data: unknown) => data) as TToPayload;
 }
 
-export function createRepository<TTypes extends RepoTypesDefinition>(
-  options: RepositoryOptionsFromTypes<TTypes>,
-): new (deps: RepositoryDeps) => RepositoryApiFromTypes<TTypes>;
+export function createRepository<
+  TTypes extends RepoTypesDefinition,
+  const O extends RepositoryOptionsFromTypes<TTypes>,
+>(
+  options: O,
+): new (
+  deps: RepositoryDeps,
+) => RepositoryApiFromTypes<TTypes, HasCacheFromOptions<O>>;
 export function createRepository<
   TSelect extends object = object,
   TCreateInput = unknown,

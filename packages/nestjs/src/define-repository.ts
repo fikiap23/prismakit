@@ -1,4 +1,5 @@
 import {
+  type HasCacheFromOptions,
   type RepositoryApi,
   type RepositoryOptions,
   type RepoPayloadHKT,
@@ -78,8 +79,7 @@ export function defineInjectableRepository<
   TWhere,
   TOrderBy,
   TPayload extends RepoPayloadHKT,
->(
-  options: DefineRepoOptions<
+  const O extends DefineRepoOptions<
     TSelect,
     TCreate,
     TUpdate,
@@ -87,13 +87,18 @@ export function defineInjectableRepository<
     TOrderBy,
     TPayload
   >,
-): new (...args: never[]) => RepositoryApi<
+>(
+  options: O,
+): new (
+  ...args: never[]
+) => RepositoryApi<
   TSelect,
   TCreate,
   TUpdate,
   TWhere,
   TOrderBy,
-  TPayload
+  TPayload,
+  HasCacheFromOptions<O>
 > {
   const {
     select: _select,
@@ -113,7 +118,15 @@ export function defineInjectableRepository<
 
   return createInjectableRepository(runtime) as new (
     ...args: never[]
-  ) => RepositoryApi<TSelect, TCreate, TUpdate, TWhere, TOrderBy, TPayload>;
+  ) => RepositoryApi<
+    TSelect,
+    TCreate,
+    TUpdate,
+    TWhere,
+    TOrderBy,
+    TPayload,
+    HasCacheFromOptions<O>
+  >;
 }
 
 /** Alias — shorter name for the same helper. */
