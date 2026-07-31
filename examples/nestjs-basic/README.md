@@ -1,26 +1,43 @@
 # NestJS basic example
 
-Copy-paste wiring for a Nest app. Full docs: [../../docs/README.md](../../docs/README.md).
+Minimal Nest app wired with `@prismakit/nestjs`. **No Docker, Postgres, or Redis required** — uses an in-memory Prisma stub and `MemoryCacheAdapter`.
+
+## Run
+
+From the monorepo root:
+
+```bash
+pnpm install
+pnpm build
+pnpm --filter @prismakit/example-nestjs-basic start
+```
+
+Then:
+
+```bash
+curl http://localhost:3001/users/demo-user
+```
+
+Expected JSON:
+
+```json
+{ "id": "demo-user", "email": "ada@example.com", "name": "Ada" }
+```
+
+## Production wiring
+
+Replace the stub with a real `PrismaClient` and Redis:
 
 ```typescript
-import { Module } from '@nestjs/common';
 import { PrismaKitModule } from '@prismakit/nestjs';
 import { RedisCacheAdapter } from '@prismakit/redis';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-const cache = new RedisCacheAdapter({ prefix: 'example' });
-
-@Module({
-  imports: [
-    PrismaKitModule.forRoot({
-      prisma,
-      cache,
-      cacheModels: ['user'],
-    }),
-  ],
-})
-export class AppModule {}
+PrismaKitModule.forRoot({
+  prisma: new PrismaClient(),
+  cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+  cacheModels: ['user'],
+});
 ```
 
 ```typescript
@@ -34,10 +51,6 @@ export const UserRepository = createInjectableRepository({
 });
 ```
 
-Register `UserRepository` in a feature module `providers`. Never inject `prisma` into services.
-
-```bash
-npx prismakit generate user --cache
-```
+Register `UserRepository` in feature `providers`. Never inject `prisma` into services.
 
 See [Getting started](../../docs/getting-started.md) and [Rules](../../docs/RULES.md).

@@ -12,7 +12,7 @@ export interface CacheOptions {
   methods?: Partial<Record<CacheMethod, { enabled?: boolean; ttl?: number }>>;
 }
 
-/** Alias of CacheOptions (legacy name from myrpc-be). */
+/** Alias of {@link CacheOptions} (migration alias). */
 export type RepositoryCacheOptions = CacheOptions;
 
 export type InvalidateMode = 'all' | 'entity' | 'queries' | 'none';

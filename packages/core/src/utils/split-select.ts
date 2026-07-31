@@ -14,6 +14,12 @@ export function splitSelect<T extends object>(
   const scalarFields = new Set(Object.keys(scalarFieldEnum));
 
   for (const [key, value] of Object.entries(select)) {
+    // Prisma aggregation selects (e.g. `_count`) must stay on the DB query —
+    // they are not relations for AutoComposer.
+    if (key === '_count') {
+      dbSelect[key] = value;
+      continue;
+    }
     if (value && typeof value === 'object') {
       relations[key] = value;
       const metaFks = relationLocalFks?.[key];

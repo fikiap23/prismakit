@@ -3,6 +3,13 @@ export {
   type RedisCacheAdapterOptions,
 } from './redis-cache-adapter';
 
+export {
+  redisJsonParse,
+  redisJsonStringify,
+  redisJsonReplacer,
+  redisJsonReviver,
+} from './redis-json';
+
 /** Re-export cache debug helpers from core — do not duplicate. */
 export {
   type CacheDebugStatus,

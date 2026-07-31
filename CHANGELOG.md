@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0]
+
+### Added
+- BigInt-safe JSON serialization in `@prismakit/redis` (Prisma `BigInt` cache payloads)
+- Runnable NestJS example (`examples/nestjs-basic`) with in-memory cache stub
+- Nest DI regression tests for `RepositoryRegistry` / `AutoComposer` inject tokens
+- `CONTRIBUTING.md` and GitHub Changesets release workflow
+
+### Changed
+- All packages aligned to the same version
+- Peer dependencies use semver ranges (no `workspace:*` in published peers)
+- Softened migration-alias JSDoc; eslint path conventions documented
+
+### Fixed
+- NestJS `@prismakit/core` dependency pin drift
+
 ## [1.1.1]
 
 ### Fixed

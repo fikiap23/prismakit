@@ -1,5 +1,17 @@
 # @prismakit/nestjs
 
+## 2.0.0
+
+### Minor Changes
+
+- Consumer-ready release: align all package versions, BigInt-safe Redis JSON, safer peerDependency ranges, Nest DI regression tests, and a runnable NestJS example.
+
+### Patch Changes
+
+- Updated dependencies
+  - @prismakit/core@2.0.0
+  - @prismakit/redis@2.0.0
+
 ## 1.0.3
 
 ### Patch Changes

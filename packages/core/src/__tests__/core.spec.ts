@@ -40,6 +40,18 @@ describe('splitSelect', () => {
     );
     expect(dbSelect).toEqual({ id: true, authorUserId: true });
   });
+
+  it('passes _count through to dbSelect (not treated as relation)', () => {
+    const countSelect = {
+      _count: { select: { repairJobs: true, vendorInvoices: true } },
+    };
+    const { dbSelect, relations } = splitSelect(countSelect, {
+      id: 'id',
+      code: 'code',
+    });
+    expect(dbSelect).toEqual(countSelect);
+    expect(relations).toEqual({});
+  });
 });
 
 describe('buildLockClause', () => {

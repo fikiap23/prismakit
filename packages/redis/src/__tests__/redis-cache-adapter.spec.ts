@@ -44,4 +44,31 @@ describe('RedisCacheAdapter', () => {
     const adapter = new RedisCacheAdapter({ prefix: 't' });
     await expect(adapter.safeGet('k')).resolves.toBeNull();
   });
+
+  it('round-trips BigInt via redisJson helpers', async () => {
+    const { redisJsonParse, redisJsonStringify } = await import('../redis-json');
+    const payload = { id: '1', qty: 9007199254740993n, nested: { n: 1n } };
+    const raw = redisJsonStringify(payload);
+    expect(raw).toContain('__bigint');
+    const parsed = redisJsonParse<typeof payload>(raw);
+    expect(parsed.qty).toBe(9007199254740993n);
+    expect(parsed.nested.n).toBe(1n);
+  });
+
+  it('set/get uses BigInt-safe JSON', async () => {
+    const { RedisCacheAdapter } = await import('../redis-cache-adapter');
+    let stored: string | undefined;
+    mockClient.set.mockImplementation((_k: string, v: string) => {
+      stored = v;
+      return Promise.resolve('OK');
+    });
+    mockClient.get.mockImplementation(() => Promise.resolve(stored ?? null));
+
+    const adapter = new RedisCacheAdapter({ prefix: 't' });
+    await adapter.set('k', { amount: 42n }, 60);
+    expect(stored).toContain('__bigint');
+    await expect(adapter.get<{ amount: bigint }>('k')).resolves.toEqual({
+      amount: 42n,
+    });
+  });
 });

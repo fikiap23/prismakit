@@ -108,5 +108,5 @@ export function createInjectableRepository(
   return NestRepository;
 }
 
-/** Alias matching myrpc-be naming for easier migration. */
+/** Migration alias for {@link createInjectableRepository}. */
 export const createPrismaRepository = createInjectableRepository;

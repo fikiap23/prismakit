@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import type { CacheAdapter } from '@prismakit/core';
+import { redisJsonParse, redisJsonStringify } from './redis-json';
 
 const INDEX_TTL_BUFFER = 60;
 
@@ -77,11 +78,11 @@ export class RedisCacheAdapter implements CacheAdapter {
   async get<T>(key: string): Promise<T | null> {
     const raw = await this.client.get(key);
     if (raw === null) return null;
-    return JSON.parse(raw) as T;
+    return redisJsonParse<T>(raw);
   }
 
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-    await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    await this.client.set(key, redisJsonStringify(value), 'EX', ttlSeconds);
   }
 
   async del(...keys: string[]): Promise<void> {
@@ -113,7 +114,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     indexKey: string,
   ): Promise<void> {
     const pipeline = this.client.pipeline();
-    pipeline.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    pipeline.set(key, redisJsonStringify(value), 'EX', ttlSeconds);
     pipeline.sadd(indexKey, key);
     pipeline.expire(indexKey, ttlSeconds + INDEX_TTL_BUFFER);
     await pipeline.exec();

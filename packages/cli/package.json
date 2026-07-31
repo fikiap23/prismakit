@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/cli",
-  "version": "1.0.10",
-  "description": "CLI for PrismaKit \u2014 generate modules, codegen relation aliases, validate compose",
+  "version": "2.0.0",
+  "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=20"
@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
@@ -36,7 +36,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": "workspace:*"
+    "@prismakit/core": ">=2.0.0"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

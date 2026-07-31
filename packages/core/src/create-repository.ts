@@ -1123,7 +1123,7 @@ export type RepositoryInstanceFromTypes<TTypes extends RepoTypesDefinition> =
 
 export type { RepositoryApiFromTypes, RepositoryCtorFromTypes };
 
-/** Alias matching myrpc-be naming for easier migration. */
+/** Migration alias for {@link createRepository}. */
 export const createPrismaRepository = createRepository;
 export type PrismaRepositoryInstance<
   TSelect extends object = object,

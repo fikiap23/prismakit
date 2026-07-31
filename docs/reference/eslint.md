@@ -22,11 +22,26 @@ export default [
 
 `recommended` turns all rules on at **error**.
 
+## Allowed paths (recommended layout)
+
+Rules allow Prisma client usage only under these path patterns (forward slashes):
+
+| Pattern | Purpose |
+|---------|---------|
+| `**/repositories/**` | Feature repositories (`defineRepo` / `createInjectableRepository`) |
+| `**/infrastructure/prisma/**` | PrismaService wiring, `defineRepo` factory, schema helpers |
+| `**/node_modules/**` | Dependencies |
+| `packages/(core\|nestjs\|redis)/**` | PrismaKit itself (monorepo) |
+
+Put all `prisma.model.*` calls in `repositories/`. Keep a thin Prisma module under `infrastructure/prisma/` (or equivalent) for client construction only — not for feature queries.
+
+If your app uses different folders, either mirror this layout or fork/adjust the plugin allowlist in a future release.
+
 ## Rules
 
 ### `prismakit/no-prisma-service-outside-repos`
 
-**Forbidden** outside `**/repositories/**`:
+**Forbidden** outside `**/repositories/**` (and the infrastructure Prisma folder above):
 
 - Injecting or referencing `PrismaService`
 - Injecting or referencing `PrismaClient`

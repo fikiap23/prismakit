@@ -68,11 +68,14 @@ export default [prismakit.configs.recommended];
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ```bash
 pnpm install
 pnpm build
 pnpm test
 pnpm typecheck
+pnpm --filter @prismakit/example-nestjs-basic start
 ```
 
 ## License

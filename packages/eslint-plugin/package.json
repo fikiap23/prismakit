@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/eslint-plugin",
-  "version": "1.0.10",
+  "version": "2.0.0",
   "description": "ESLint rules enforcing PrismaKit data-access boundaries",
   "license": "Apache-2.0",
   "engines": {
@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
