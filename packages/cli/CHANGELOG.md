@@ -1,5 +1,13 @@
 # @prismakit/cli
 
+## 1.0.3
+
+### Patch Changes
+
+- Enrich npm package READMEs with fuller usage, tables, and doc links.
+- Updated dependencies
+  - @prismakit/core@1.0.3
+
 ## 1.0.2
 
 ### Patch Changes

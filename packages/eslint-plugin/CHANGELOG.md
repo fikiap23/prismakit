@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 1.0.3
+
+### Patch Changes
+
+- Enrich npm package READMEs with fuller usage, tables, and doc links.
+
 ## 1.0.2
 
 ### Patch Changes
