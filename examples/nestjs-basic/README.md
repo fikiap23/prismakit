@@ -1,6 +1,6 @@
 # NestJS basic example
 
-Minimal wiring (copy into your Nest app):
+Copy-paste wiring for a Nest app. Full docs: [../../docs/README.md](../../docs/README.md).
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -16,14 +16,12 @@ const cache = new RedisCacheAdapter({ prefix: 'example' });
     PrismaKitModule.forRoot({
       prisma,
       cache,
-      cacheModels: ['user'], // optional strict allowlist
+      cacheModels: ['user'],
     }),
   ],
 })
 export class AppModule {}
 ```
-
-Repository (thin API — no `getDelegate` / `toPayload`):
 
 ```typescript
 import { Prisma } from '@prisma/client';
@@ -38,10 +36,8 @@ export const UserRepository = createInjectableRepository({
 
 Register `UserRepository` in a feature module `providers`. Never inject `prisma` into services.
 
-Or scaffold with the CLI:
-
 ```bash
 npx prismakit generate user --cache
 ```
 
-See root [README.md](../../README.md) and [docs/RULES.md](../../docs/RULES.md).
+See [Getting started](../../docs/getting-started.md) and [Rules](../../docs/RULES.md).

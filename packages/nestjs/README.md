@@ -41,9 +41,11 @@ Register `UserRepository` in a feature module `providers`. Do **not** inject `Pr
 
 ## Docs
 
-- [GitHub README](https://github.com/fikiap23/prismakit#readme)
+- [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)
+- [NestJS guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/nestjs.md)
+- [Transactions](https://github.com/fikiap23/prismakit/blob/master/docs/guide/transactions.md)
 - [Rules](https://github.com/fikiap23/prismakit/blob/master/docs/RULES.md)
-- [Agents](https://github.com/fikiap23/prismakit/blob/master/docs/AGENTS.md)
+
 
 ## License
 

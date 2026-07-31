@@ -27,7 +27,9 @@ npx prismakit validate
 
 ## Docs
 
-- [GitHub README](https://github.com/fikiap23/prismakit#readme)
+- [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)
+- [CLI reference](https://github.com/fikiap23/prismakit/blob/master/docs/reference/cli.md)
+
 
 ## License
 

@@ -27,8 +27,10 @@ export default [
 
 ## Docs
 
+- [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)
+- [ESLint reference](https://github.com/fikiap23/prismakit/blob/master/docs/reference/eslint.md)
 - [Rules](https://github.com/fikiap23/prismakit/blob/master/docs/RULES.md)
-- [GitHub README](https://github.com/fikiap23/prismakit#readme)
+
 
 ## License
 

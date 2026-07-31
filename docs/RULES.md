@@ -1,7 +1,7 @@
 # PrismaKit — Non-negotiable rules
 
-These rules mirror the data-access contract from production NestJS apps using PrismaKit.  
-**Violations are bugs.** Enforce with `@prismakit/eslint-plugin` + this doc.
+These rules are the data-access contract for PrismaKit apps.  
+**Violations are bugs.** Enforce with [`@prismakit/eslint-plugin`](reference/eslint.md) + this doc.
 
 ## Forbidden
 
@@ -9,7 +9,7 @@ These rules mirror the data-access contract from production NestJS apps using Pr
 |-----------|-----|
 | `PrismaService` / `PrismaClient` in services, helpers, controllers, processors | Bypasses cache, compose, invalidation |
 | `prisma.<model>.*` outside `**/repositories/**` | Same |
-| `$transaction` / raw `execTx` on Prisma client in feature code | Use `TransactionService` |
+| `$transaction` on Prisma client in feature code | Use `TransactionService` ([guide](guide/transactions.md)) |
 | `setCache: true` on auth / uniqueness `getFirst` | Stale nulls / race hazards |
 | Caching selects with `password` (or other `sensitiveFields`) | Security |
 | Row `lock` without `tx` | Lock must live inside a transaction |
@@ -19,20 +19,23 @@ These rules mirror the data-access contract from production NestJS apps using Pr
 | Required | How |
 |----------|-----|
 | Reads/writes | `*Repository` from `createRepository` / `createInjectableRepository` |
-| Transactions | `TransactionService.execTx(fn, afterCommit?)` |
+| Transactions (Nest) | `TransactionService.execTx(fn, afterCommit?)` |
 | Tx writes | `invalidate: 'none'` then `invalidateCache` in `afterCommit` |
 | User-facing reads | `setCache: true` when repo has cache config |
-| Relations in select | `model` + `scalarFields` on source repo (auto-compose) |
-| ESLint | `plugin:prismakit/recommended` (or flat `configs.recommended`) |
+| Relations in select | `model` + `scalarFields` on source repo ([auto-compose](guide/auto-compose.md)) |
+| ESLint | `prismakit.configs.recommended` |
 
 ## Layers
 
 ```
-Controller → Service (handle* only) → Repository → Prisma / Cache
+Controller → Service (orchestration) → Repository → Prisma / Cache
 ```
 
 Helpers may inject repositories — **never** Prisma client.
 
-## Cache summary
+## Learn more
 
-See [CACHE.md](CACHE.md).
+- [Getting started](getting-started.md)
+- [Cache](guide/cache.md)
+- [Transactions](guide/transactions.md)
+- [ESLint](reference/eslint.md)

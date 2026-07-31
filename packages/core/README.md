@@ -43,9 +43,11 @@ Prefer [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) fo
 
 ## Docs
 
-- [GitHub README](https://github.com/fikiap23/prismakit#readme)
+- [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)
+- [Repository guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/repository.md)
+- [Cache](https://github.com/fikiap23/prismakit/blob/master/docs/guide/cache.md)
 - [Rules](https://github.com/fikiap23/prismakit/blob/master/docs/RULES.md)
-- [Cache](https://github.com/fikiap23/prismakit/blob/master/docs/CACHE.md)
+
 
 ## License
 

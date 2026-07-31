@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 1.0.2
+
+### Patch Changes
+
+- Expand developer documentation (guides + reference) and refresh package README links.
+
 ## 1.0.1
 
 ### Patch Changes

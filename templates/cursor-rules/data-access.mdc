@@ -22,4 +22,4 @@ alwaysApply: true
 - Inside `@prismakit/*` internals
 - Inside `**/repositories/**` only (via factory delegate)
 
-See PrismaKit `docs/RULES.md` and `docs/AGENTS.md`.
+See PrismaKit docs: `docs/RULES.md`, `docs/getting-started.md`, and `docs/README.md`.

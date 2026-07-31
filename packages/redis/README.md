@@ -25,8 +25,9 @@ Pass `cache` into `createRepository` deps, or into `PrismaKitModule.forRoot({ ca
 
 ## Docs
 
-- [GitHub README](https://github.com/fikiap23/prismakit#readme)
-- [Cache guide](https://github.com/fikiap23/prismakit/blob/master/docs/CACHE.md)
+- [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)
+- [Cache guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/cache.md)
+
 
 ## License
 

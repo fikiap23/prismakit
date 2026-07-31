@@ -1,5 +1,13 @@
 # @prismakit/redis
 
+## 1.0.2
+
+### Patch Changes
+
+- Expand developer documentation (guides + reference) and refresh package README links.
+- Updated dependencies
+  - @prismakit/core@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes

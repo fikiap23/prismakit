@@ -1,6 +1,6 @@
 # AGENTS.md — PrismaKit
 
-Guide for AI coding agents and humans consuming `@prismakit/*`.
+Short contract for AI coding agents and humans. Prefer the full guides under [`docs/`](README.md) when implementing features.
 
 ## Architecture
 
@@ -11,9 +11,9 @@ Controller → Service → Repository → Prisma / CacheAdapter
 | Layer | Responsibility |
 |-------|----------------|
 | **Controller** | HTTP only — no Prisma |
-| **Service** | Thin `handle*` orchestration — call repositories / helpers |
-| **Helper** | Validate, map, guard — repositories only, never Prisma client |
-| **Repository** | Only layer that talks to Prisma (via `createRepository` factory) |
+| **Service** | Thin orchestration — call repositories / helpers |
+| **Helper** | Validate, map, guard — repositories only |
+| **Repository** | Only layer that talks to Prisma |
 
 ## Creating a repository
 
@@ -29,19 +29,13 @@ export const FeatureRepository = createInjectableRepository({
 });
 ```
 
-`getDelegate` and `toPayload` default from `model`. Pass them only when you need custom behavior.
+`getDelegate` / `toPayload` default from `model`.
 
-Strict cache allowlist (optional) via module options:
+Optional allowlist:
 
 ```typescript
-PrismaKitModule.forRoot({
-  prisma,
-  cache,
-  cacheModels: ['user', 'feature'],
-});
+PrismaKitModule.forRoot({ prisma, cache, cacheModels: ['user', 'feature'] });
 ```
-
-Omit `cacheModels` for fail-open (no allowlist check).
 
 ## Transactions
 
@@ -56,29 +50,25 @@ await this.tx.execTx(
 );
 ```
 
-`tags` is optional on mutations (defaults to no tag invalidation).
-
-## Select presets
+## Select presets (convention)
 
 - `minimal` — existence / uniqueness (no `setCache`)
 - `general` — API responses (`setCache: true` OK)
 - `withPassword` — auth only (never cached)
 
-Relations in select are loaded by **AutoComposer** when `model` + `scalarFields` are set.
-
 ## CLI
 
 ```bash
-npx prismakit generate <name> --cache          # repository only
-npx prismakit generate <name> --cache --full   # Nest module scaffold
+npx prismakit generate <name> --cache
+npx prismakit generate <name> --cache --full
 npx prismakit codegen
 npx prismakit validate
 ```
 
 ## Enforcement
 
-1. Docs: [RULES.md](RULES.md), [CACHE.md](CACHE.md)
+1. [RULES.md](RULES.md) · [getting-started](getting-started.md) · [guides](README.md)
 2. ESLint: `@prismakit/eslint-plugin`
-3. Runtime: lock/cache config validation at repository init
+3. Runtime: lock/cache validation at repository init
 
-See also Cursor rule template: `templates/cursor-rules/data-access.mdc`.
+Cursor template: `templates/cursor-rules/data-access.mdc`.
