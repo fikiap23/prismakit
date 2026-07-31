@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/nestjs",
-  "version": "1.0.6",
+  "version": "1.0.10",
   "description": "NestJS integration for @prismakit/core \u2014 PrismaKitModule, TransactionService, injectable repositories",
   "license": "Apache-2.0",
   "engines": {

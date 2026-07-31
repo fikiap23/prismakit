@@ -26,6 +26,21 @@ export type {
   RepositoryApi,
 } from './types/repository-api.type';
 
+export type {
+  RepositoryApiFromTypeMap,
+} from './types/repository-api-typemap.type';
+
+export type {
+  PrismaTypeMapLike,
+  TypeMapSelect,
+  TypeMapCreateInput,
+  TypeMapUpdateInput,
+  TypeMapWhereInput,
+  TypeMapOrderByInput,
+  TypeMapGetPayload,
+  CamelToPascal,
+} from './types/prisma-typemap.type';
+
 // Cache
 export type { CacheAdapter } from './cache/cache-adapter.interface';
 export type {

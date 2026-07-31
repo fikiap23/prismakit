@@ -26,6 +26,11 @@ export {
   createPrismaRepository,
 } from './injectable-repository';
 export {
+  defineInjectableRepository,
+  defineRepo,
+} from './define-repository';
+export { createDefineRepo } from './create-define-repo';
+export {
   PRISMAKIT_PRISMA,
   PRISMAKIT_CACHE,
   PRISMAKIT_OPTIONS,
@@ -42,6 +47,9 @@ export {
   type RepositoryInstanceFromTypes,
   type RepositoryApi,
   type RepositoryApiFromTypes,
+  type RepositoryApiFromTypeMap,
+  type PrismaTypeMapLike,
+  type CamelToPascal,
   type PrismaRepositoryInstance,
   type PrismaClientLike,
   type DefaultToPayload,

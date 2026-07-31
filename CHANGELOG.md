@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10]
+
+### Fixed
+- TypeMap payload mapping no longer imports `@prisma/client/runtime/*` (IDE types were blank)
+- Prefer explicit `AppRepo<'Model'>` over `InstanceType` for autocomplete
+
+## [1.0.9]
+
+### Fixed
+- `PrismaTypeMapLike` accepts view models without create/update ops
+
+## [1.0.8]
+
+### Added
+- `createDefineRepo<Prisma.TypeMap>()` — zero-phantom repos typed from Prisma TypeMap (`model` + `scalarFields` only)
+
+## [1.0.7]
+
+### Added
+- `defineInjectableRepository` / `defineRepo` — compact Nest factory (phantoms + payload HKT class, no separate types bag)
+
 ## [1.0.6]
 
 ### Fixed

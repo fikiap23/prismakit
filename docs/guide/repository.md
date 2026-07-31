@@ -4,35 +4,28 @@ Everything that touches Prisma goes through a repository created with `createRep
 
 ## Creating a repository (strong types)
 
-Pass a **types bag** so select→payload stays precise without a runtime `toPayload`:
+Use `defineInjectableRepository` (alias `defineRepo`) — phantoms + payload HKT:
 
 ```typescript
 import { Prisma } from '@prisma/client';
-import {
-  createInjectableRepository,
-  type RepoPayloadHKT,
-} from '@prismakit/nestjs';
+import { defineInjectableRepository } from '@prismakit/nestjs';
 
-type UserPayloadOf<S> = S extends Prisma.UserSelect
+type Of<S> = S extends Prisma.UserSelect
   ? Prisma.UserGetPayload<{ select: S }>
   : never;
 
-interface UserPayloadHKT extends RepoPayloadHKT {
-  type(): UserPayloadOf<this['_select']>;
-}
-
-type UserTypes = {
-  select: Prisma.UserSelect;
-  create: Prisma.UserCreateInput;
-  update: Prisma.UserUpdateInput;
-  where: Prisma.UserWhereInput;
-  orderBy: Prisma.UserOrderByWithRelationInput;
-  payload: UserPayloadHKT;
-};
-
-export const UserRepository = createInjectableRepository<UserTypes>({
+export const UserRepository = defineInjectableRepository({
   model: 'user',
   scalarFields: Prisma.UserScalarFieldEnum,
+  select: null! as Prisma.UserSelect,
+  create: null! as Prisma.UserCreateInput,
+  update: null! as Prisma.UserUpdateInput,
+  where: null! as Prisma.UserWhereInput,
+  orderBy: null! as Prisma.UserOrderByWithRelationInput,
+  payload: class {
+    declare readonly _select: unknown;
+    declare type: () => Of<this['_select']>;
+  },
   cache: { ttl: 86400, sensitiveFields: ['password'] },
   lock: 'users',
 });
@@ -43,10 +36,15 @@ export type UserRepository = InstanceType<typeof UserRepository>;
 `getById({ select: { id: true, email: true } })` then returns
 `Prisma.UserGetPayload<{ select: { id: true; email: true } }> | null`.
 
+### Types-bag overload (equivalent)
+
+You can still use `createInjectableRepository<UserTypes>({...})` with an
+explicit `RepoTypesDefinition` if you prefer that style.
+
 ### Minimal (no payload precision)
 
 Omitting the types bag keeps the factory thin, but method results are `unknown`
-unless you supply a typed `toPayload`. Prefer the types bag above for app code.
+unless you supply a typed `toPayload`. Prefer `defineInjectableRepository` above for app code.
 
 ```typescript
 export const UserRepository = createInjectableRepository({
