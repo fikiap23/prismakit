@@ -1,0 +1,54 @@
+{
+  "name": "@prismakit/nestjs",
+  "version": "0.1.0",
+  "description": "NestJS integration for @prismakit/core — PrismaKitModule, TransactionService, injectable repositories",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@nestjs/common": ">=10.0.0",
+    "@nestjs/core": ">=10.0.0",
+    "@prismakit/core": "workspace:*",
+    "@prismakit/redis": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@prismakit/redis": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typescript": "^5.9.2",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

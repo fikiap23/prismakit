@@ -1,0 +1,25 @@
+---
+description: Mandatory repository-only data access (PrismaKit)
+alwaysApply: true
+---
+
+# Data access — forbidden to bypass repository
+
+## Forbidden in feature code (services, helpers, controllers, processors)
+
+- Injecting or calling `PrismaService` / `PrismaClient`
+- Calling `prisma.<model>.*` directly
+- Calling `$transaction` on Prisma client — use `TransactionService.execTx`
+
+## Required
+
+- **Reads/writes:** `*Repository` from `createRepository` / `createInjectableRepository`
+- **Transactions:** `TransactionService.execTx` with `invalidate: 'none'` + `afterCommit` → `invalidateCache`
+- **ESLint:** `@prismakit/eslint-plugin` recommended config
+
+## Allowed Prisma client usage
+
+- Inside `@prismakit/*` internals
+- Inside `**/repositories/**` only (via factory delegate)
+
+See PrismaKit `docs/RULES.md` and `docs/AGENTS.md`.

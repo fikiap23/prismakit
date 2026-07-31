@@ -1,0 +1,29 @@
+{
+  "name": "prismakit",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Prisma repository kit with cache-aside, auto-compose, and row locks",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.12",
+    "@types/node": "^22.13.10",
+    "turbo": "^2.4.4",
+    "typescript": "^5.9.2",
+    "vitest": "^3.0.8",
+    "tsup": "^8.4.0"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@prismakit/eslint-plugin",
+  "version": "0.1.0",
+  "description": "ESLint rules enforcing PrismaKit data-access boundaries",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "eslint": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@types/estree": "^1.0.6",
+    "eslint": "^9.22.0",
+    "typescript": "^5.9.2",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

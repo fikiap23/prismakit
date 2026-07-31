@@ -1,0 +1,45 @@
+{
+  "name": "@prismakit/cli",
+  "version": "0.1.0",
+  "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "bin": {
+    "prismakit": "./dist/bin.js"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@prismakit/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
