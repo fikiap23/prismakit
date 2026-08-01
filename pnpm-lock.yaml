@@ -116,8 +116,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@prismakit/redis':
-        specifier: '>=1.0.0'
-        version: 1.0.8(@prismakit/core@packages+core)(ioredis@5.11.1)
+        specifier: '>=2.1.0'
+        version: 2.1.0(@prismakit/core@packages+core)(ioredis@5.11.1)
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
@@ -690,11 +690,11 @@ packages:
       typescript:
         optional: true
 
-  '@prismakit/redis@1.0.8':
-    resolution: {integrity: sha512-2JSz1QWk75pEYeZIunFPWa9+kR4+A9RxSoMooyEBUrlN+r8G4g0I4hOJXXUNUy4Gx4hhq5kT8VNqRxgJjcQclA==}
+  '@prismakit/redis@2.1.0':
+    resolution: {integrity: sha512-slPeOJnjUshEA9sR5gOQSOJRdSg6bijUHfhhjL2Ptowv10dnjdxeAlAVqoZEAw8WXVVwF9q6rCI81vJpYDlmGA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@prismakit/core': 1.0.8
+      '@prismakit/core': '>=2.1.0'
       ioredis: '>=5.0.0'
 
   '@rollup/rollup-android-arm-eabi@4.62.3':
@@ -2585,7 +2585,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  '@prismakit/redis@1.0.8(@prismakit/core@packages+core)(ioredis@5.11.1)':
+  '@prismakit/redis@2.1.0(@prismakit/core@packages+core)(ioredis@5.11.1)':
     dependencies:
       '@prismakit/core': link:packages/core
       ioredis: 5.11.1
