@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/memory",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "In-memory CacheAdapter for @prismakit/core (tests and local dev)",
   "license": "Apache-2.0",
   "engines": {
