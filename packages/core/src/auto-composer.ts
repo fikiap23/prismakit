@@ -3,6 +3,22 @@ import { RepositoryRegistry } from './repository-registry';
 import { resolveRelationModel } from './compose/relation-resolver';
 import { getModelMeta } from './schema/prisma-meta';
 
+/**
+ * Ensure relation target rows include the primary key so AutoComposer can map
+ * them back onto parents (and nest further). Callers may omit `id` in nested
+ * selects; without this injection every relation attaches as `null`.
+ */
+export function ensureSelectPrimaryKey(
+  select: Record<string, any> | undefined,
+  primaryKey: string,
+  scalarFields?: Record<string, string>,
+): Record<string, any> | undefined {
+  if (!select) return select;
+  if (scalarFields && !(primaryKey in scalarFields)) return select;
+  if (select[primaryKey] === true) return select;
+  return { ...select, [primaryKey]: true };
+}
+
 export class AutoComposer {
   constructor(private readonly registry: RepositoryRegistry) {}
 
@@ -69,6 +85,12 @@ export class AutoComposer {
           targetDbSelect = split.dbSelect as Record<string, any>;
           targetRelations = split.relations;
         }
+
+        targetDbSelect = ensureSelectPrimaryKey(
+          targetDbSelect,
+          targetPk,
+          targetScalars,
+        );
 
         const localFk =
           relMeta?.localFields[0] ??

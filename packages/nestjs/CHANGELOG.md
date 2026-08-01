@@ -1,5 +1,14 @@
 # @prismakit/nestjs
 
+## 2.1.1
+
+### Patch Changes
+
+- AutoComposer injects the target primary key into nested relation selects so compose mapping works even when callers omit `id`.
+- Updated dependencies
+  - @prismakit/core@2.1.1
+  - @prismakit/redis@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes

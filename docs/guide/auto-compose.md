@@ -49,7 +49,10 @@ What happens:
 
 1. `splitSelect` keeps scalars (+ FK fields from DMMF) for the Prisma query
 2. Relation keys are loaded via the target repository (`getMany` / lookups)
-3. Results are merged into the payload
+3. AutoComposer **always injects the target primary key** into the nested select (even if you omitted `id`) so rows can be mapped back onto parents
+4. Results are merged into the payload
+
+You can write nested selects without `id` — e.g. `author: { select: { name: true } }` — and compose still works. The injected PK appears on the composed object.
 
 ## Free naming (DMMF)
 

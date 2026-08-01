@@ -210,6 +210,60 @@ describe('prisma meta / free naming', () => {
     expect(rows[0].editor).toEqual({ id: 'u2', name: 'Bob' });
   });
 
+  it('AutoComposer injects target PK when nested select omits id', async () => {
+    loadPrismaMetaFromDmmf(sampleDmmf);
+    const registry = new RepositoryRegistry();
+    const users = [
+      { id: 'u1', name: 'Ada' },
+      { id: 'u2', name: 'Bob' },
+    ];
+    const seenSelects: Array<Record<string, unknown> | undefined> = [];
+    registry.register('user', {
+      repository: {
+        getMany: async ({ where, select }: any) => {
+          seenSelects.push(select);
+          const ids = where.id.in as string[];
+          return users
+            .filter((u) => ids.includes(u.id))
+            .map((u) => {
+              if (!select) return { ...u };
+              const row: Record<string, unknown> = {};
+              for (const key of Object.keys(select)) {
+                if (select[key]) row[key] = (u as any)[key];
+              }
+              return row;
+            });
+        },
+      },
+      scalarFields: getModelMeta('user')!.scalarFields,
+    });
+    registry.register('post', {
+      repository: { getMany: async () => [] },
+      scalarFields: getModelMeta('post')!.scalarFields,
+    });
+
+    const composer = new AutoComposer(registry);
+    const rows = [
+      { id: 'p1', authorUserId: 'u1', editorUserId: 'u2' },
+    ];
+    await composer.composeMany(
+      rows,
+      {
+        // Intentionally omit `id` — AutoComposer must inject it for mapping.
+        author: { select: { name: true } },
+        editor: { select: { name: true } },
+      },
+      'post',
+    );
+
+    expect(seenSelects).toHaveLength(2);
+    for (const select of seenSelects) {
+      expect(select).toEqual({ name: true, id: true });
+    }
+    expect(rows[0].author).toEqual({ id: 'u1', name: 'Ada' });
+    expect(rows[0].editor).toEqual({ id: 'u2', name: 'Bob' });
+  });
+
   it('AutoComposer attaches to-many via opposite FK', async () => {
     loadPrismaMetaFromDmmf(sampleDmmf);
     const registry = new RepositoryRegistry();

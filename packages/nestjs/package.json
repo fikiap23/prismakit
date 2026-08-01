@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/nestjs",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "NestJS integration for @prismakit/core — PrismaKitModule, TransactionService, injectable repositories",
   "license": "Apache-2.0",
   "engines": {
@@ -35,8 +35,8 @@
   "peerDependencies": {
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
-    "@prismakit/core": ">=2.1.0",
-    "@prismakit/redis": ">=2.1.0"
+    "@prismakit/core": ">=2.1.1",
+    "@prismakit/redis": ">=2.1.1"
   },
   "peerDependenciesMeta": {
     "@prismakit/redis": {

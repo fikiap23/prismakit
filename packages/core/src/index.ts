@@ -72,7 +72,7 @@ export {
 } from './cache/cache-debug.util';
 
 // Compose
-export { AutoComposer } from './auto-composer';
+export { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
 export {
   RepositoryRegistry,
   type RegisteredRepository,
