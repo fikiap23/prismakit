@@ -3,7 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
-  "linked": [["@prismakit/core", "@prismakit/redis", "@prismakit/nestjs", "@prismakit/cli", "@prismakit/eslint-plugin"]],
+  "linked": [["@prismakit/core", "@prismakit/redis", "@prismakit/nestjs", "@prismakit/cli", "@prismakit/eslint-plugin", "@prismakit/memory"]],
   "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
