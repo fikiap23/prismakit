@@ -1,0 +1,22 @@
+{
+  "name": "@prismakit/benchmark",
+  "private": true,
+  "version": "2.2.0",
+  "description": "Synthetic micro-benchmarks for @prismakit/core (no database required)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/bench.ts",
+    "bench": "tsx src/bench.ts"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*",
+    "tinybench": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.0.8"
+  }
+}

@@ -12,6 +12,10 @@ export type GenerateCommandOptions = {
   dryRun?: boolean;
   /** Emit full Nest module (controller/service/types). Default: repo-only. */
   full?: boolean;
+  /** Emit validate + mapper helpers. */
+  helpers?: boolean;
+  /** Emit class-validator DTOs. */
+  dto?: boolean;
   /** Prisma client import path (default `@prisma/client`). */
   prismaImport?: string;
 };
@@ -24,6 +28,8 @@ export function runGenerate(options: GenerateCommandOptions): void {
     names,
     cacheEnabled: !!options.cache,
     full,
+    helpers: !!options.helpers,
+    dto: !!options.dto,
     prismaImport: options.prismaImport,
   });
 

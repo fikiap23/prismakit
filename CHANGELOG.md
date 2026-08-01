@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0]
+
+### Added
+- **AutoComposer**: `maxDepth`, `parallel`, nested `where`/`orderBy`/`take`, compose telemetry, `setComposeOptions`
+- **Stampede v2**: exponential backoff, total timeout, in-process `singleflight`, configurable per-repo `cache.stampede`
+- **Cache**: FNV-1a `stableHash` (replaces SHA-256), WeakMap select hash / splitSelect caches, `defaultSetCache`, `invalidate: 'stale'`
+- **Bulk ops**: `createMany`, `updateMany`, `deleteMany`, `upsert` on repositories
+- **Composite primary keys**: `primaryKey: string | string[]`
+- **Row locks**: `getFirst` / `getMany` with `lock` + `queryRowsForUpdate`
+- **Telemetry**: `setTelemetry` / events for cache, compose, lock, stampede, query
+- **NestJS**: `execTx` options (`timeout`, `isolationLevel`), typed `TClient`, `autoRegisterModels`, `compose`, `telemetry`, `queryLog`
+- **`@prismakit/memory`**: in-memory `CacheAdapter` for tests/dev
+- **Redis**: Lua atomic `invalidateByIndex`, optional gzip compression, pipeline SET+index
+- **CLI**: `--helpers` / `--dto` with enhanced `--full` CRUD scaffold
+- Docs site (`docs-site`), migration guides, Express/Fastify examples, benchmark package
+- TypeScript `src/` included in npm packages for better debugging
+
+### Changed
+- Preferred factory alias: `defineRepository` (core + nestjs); older names kept as aliases
+- Mutation `tags` is optional (no more `tags: null` boilerplate)
+
 ## [2.1.1]
 
 ### Fixed

@@ -3,12 +3,32 @@
  *
  * When `relationLocalFks` is provided (from Prisma meta), those FK fields are
  * injected. Otherwise falls back to `${relationKey}Id` when present in scalars.
+ *
+ * Results are cached by select object identity (WeakMap) when no relationLocalFks
+ * override is needed for a different identity — callers with stable select presets
+ * benefit from zero re-split cost.
  */
+
+type SplitResult<T> = {
+  dbSelect: T;
+  relations: Record<string, unknown>;
+};
+
+const splitCache = new WeakMap<object, SplitResult<object>>();
+
 export function splitSelect<T extends object>(
   select: T,
   scalarFieldEnum: Record<string, string>,
   relationLocalFks?: Record<string, readonly string[]>,
-) {
+): SplitResult<T> {
+  // Only cache when FKs come from a stable source keyed with the select object.
+  // When relationLocalFks is provided, still cache by select identity (FKs are
+  // typically stable per model for the lifetime of the process).
+  if (!relationLocalFks) {
+    const cached = splitCache.get(select);
+    if (cached) return cached as SplitResult<T>;
+  }
+
   const dbSelect: Record<string, unknown> = {};
   const relations: Record<string, unknown> = {};
   const scalarFields = new Set(Object.keys(scalarFieldEnum));
@@ -40,8 +60,19 @@ export function splitSelect<T extends object>(
     }
   }
 
-  return {
+  const result = {
     dbSelect: dbSelect as T,
     relations,
   };
+
+  if (!relationLocalFks) {
+    splitCache.set(select, result as SplitResult<object>);
+  }
+
+  return result;
+}
+
+/** Clear splitSelect WeakMap (for tests). */
+export function clearSplitSelectCache(): void {
+  // WeakMap has no clear — no-op; entries GC with select objects.
 }

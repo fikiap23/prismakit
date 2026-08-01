@@ -1,0 +1,22 @@
+{
+  "name": "@prismakit/example-fastify",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Minimal Fastify + PrismaKit example (no Docker / DB required)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*",
+    "@prismakit/memory": "workspace:*",
+    "fastify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.9.2"
+  }
+}

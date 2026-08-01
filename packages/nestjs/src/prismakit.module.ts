@@ -11,12 +11,20 @@ import {
 import {
   assertSelectComposeValid,
   AutoComposer,
+  createRepository,
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
+  pascalToRepoKey,
+  getSchemaModels,
+  setComposeOptions,
   setRegisteredCacheModels,
+  setTelemetry,
   type CacheAdapter,
+  type ComposeOptions,
   type PrismaClientLike,
   type PrismaDmmfLike,
+  type TelemetryEvent,
+  type TelemetryOptions,
   RepositoryRegistry,
 } from '@prismakit/core';
 
@@ -27,10 +35,21 @@ import {
 } from './tokens';
 import { TransactionService } from './transaction.service';
 
+export type QueryLogOptions = {
+  /** Log queries slower than this many ms (default 500). */
+  slowThreshold?: number;
+  onSlowQuery?: (event: {
+    model?: string;
+    method?: string;
+    durationMs: number;
+    thresholdMs: number;
+  }) => void;
+};
+
 export type PrismaKitModuleOptions = {
   /** Prisma client instance. Provided via `PRISMAKIT_PRISMA` for repositories only. */
   prisma: PrismaClientLike;
-  /** Optional cache backend (e.g. RedisCacheAdapter). */
+  /** Optional cache backend (e.g. RedisCacheAdapter / MemoryCacheAdapter). */
   cache?: CacheAdapter;
   /**
    * Prisma DMMF (`Prisma.dmmf` on Prisma 5/6). Optional on Prisma 7 —
@@ -49,6 +68,20 @@ export type PrismaKitModuleOptions = {
    * allowed for these model keys. Omit for fail-open (no allowlist check).
    */
   cacheModels?: readonly string[];
+  /** Global auto-compose options (maxDepth, parallel, setCache). */
+  compose?: ComposeOptions;
+  /** Telemetry / metrics hooks. */
+  telemetry?: TelemetryOptions;
+  /** Slow-query logging (wires into telemetry). */
+  queryLog?: QueryLogOptions;
+  /**
+   * Auto-register read-only stub repositories for models that lack an explicit
+   * Nest provider — eliminates compose-only stub repos.
+   *
+   * - `true` — register all models from schema/DMMF
+   * - `string[]` — register only these client keys (e.g. `['courierInvoiceItem']`)
+   */
+  autoRegisterModels?: boolean | readonly string[];
 };
 
 export type PrismaKitModuleAsyncOptions = {
@@ -59,6 +92,35 @@ export type PrismaKitModuleAsyncOptions = {
   inject?: unknown[];
 };
 
+function wireTelemetry(options: PrismaKitModuleOptions): void {
+  const userHandler = options.telemetry?.onEvent;
+  const queryLog = options.queryLog;
+  const threshold = queryLog?.slowThreshold ?? 500;
+  const enabled =
+    options.telemetry?.enabled === true || queryLog !== undefined;
+
+  if (!enabled && !userHandler && !queryLog) return;
+
+  setTelemetry({
+    enabled: true,
+    onEvent: (event: TelemetryEvent) => {
+      userHandler?.(event);
+      if (
+        queryLog?.onSlowQuery &&
+        event.type === 'query.complete' &&
+        event.durationMs >= threshold
+      ) {
+        queryLog.onSlowQuery({
+          model: event.model,
+          method: event.method,
+          durationMs: event.durationMs,
+          thresholdMs: threshold,
+        });
+      }
+    },
+  });
+}
+
 function applyModuleOptions(options: PrismaKitModuleOptions): void {
   if (options.cacheModels) {
     setRegisteredCacheModels(options.cacheModels);
@@ -67,6 +129,45 @@ function applyModuleOptions(options: PrismaKitModuleOptions): void {
     loadPrismaMetaFromDmmf(options.dmmf);
   } else if (options.schemaPath) {
     loadPrismaMetaFromSchema(options.schemaPath);
+  }
+  if (options.compose) {
+    setComposeOptions(options.compose);
+  }
+  wireTelemetry(options);
+}
+
+function autoRegisterStubRepos(
+  registry: RepositoryRegistry,
+  prisma: PrismaClientLike,
+  options: PrismaKitModuleOptions,
+): void {
+  if (!options.autoRegisterModels) return;
+
+  let models: string[] = [];
+  if (Array.isArray(options.autoRegisterModels)) {
+    models = [...options.autoRegisterModels];
+  } else if (options.schemaPath) {
+    models = getSchemaModels(options.schemaPath).map((m) =>
+      pascalToRepoKey(m.name),
+    );
+  } else {
+    console.warn(
+      '[PrismaKit] autoRegisterModels: true requires schemaPath or an explicit model list',
+    );
+    return;
+  }
+
+  for (const model of models) {
+    if (registry.get(model)) continue;
+    if (prisma[model] == null) continue;
+
+    const Repo = createRepository({ model });
+    new Repo({
+      prisma,
+      cache: options.cache,
+      registry,
+      autoCompose: new AutoComposer(registry),
+    });
   }
 }
 
@@ -77,11 +178,20 @@ export class PrismaKitModule implements OnModuleInit {
     @Optional()
     @Inject(PRISMAKIT_OPTIONS)
     private readonly options?: PrismaKitModuleOptions,
+    @Optional()
+    private readonly registry?: RepositoryRegistry,
   ) {}
 
   onModuleInit(): void {
     if (this.options) {
       applyModuleOptions(this.options);
+      if (this.registry && this.options.prisma) {
+        autoRegisterStubRepos(
+          this.registry,
+          this.options.prisma,
+          this.options,
+        );
+      }
     }
     if (!this.options?.validateCompose) return;
     assertSelectComposeValid(process.cwd());

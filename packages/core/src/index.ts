@@ -2,6 +2,7 @@
 export {
   createRepository,
   createPrismaRepository,
+  defineRepository,
   type RepositoryOptions,
   type RepositoryOptionsFromTypes,
   type RepositoryDeps,
@@ -50,6 +51,15 @@ export type {
   RepositoryCacheOptions,
   InvalidateMode,
 } from './types/cache-options.type';
+export type {
+  StampedeOptions,
+  StampedeBackoff,
+} from './types/stampede-options.type';
+export {
+  DEFAULT_STAMPEDE_OPTIONS,
+  resolveStampedeOptions,
+  stampedeWaitMs,
+} from './types/stampede-options.type';
 export {
   setRegisteredCacheModels,
   getRegisteredCacheModels,
@@ -63,7 +73,8 @@ export {
 } from './cache/cache-key.util';
 export { selectIncludesSensitiveField } from './cache/cache-guard.util';
 export { applyJitter } from './cache/ttl-jitter.util';
-export { stableHash } from './cache/stable-hash.util';
+export { stableHash, precomputeSelectHash } from './cache/stable-hash.util';
+export { singleflight, clearSingleflight } from './cache/singleflight';
 export {
   type CacheDebugStatus,
   cacheDebugStorage,
@@ -73,6 +84,12 @@ export {
 
 // Compose
 export { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
+export {
+  setComposeOptions,
+  getComposeOptions,
+  mergeComposeOptions,
+  type ComposeOptions,
+} from './compose/compose-options';
 export {
   RepositoryRegistry,
   type RegisteredRepository,
@@ -104,6 +121,8 @@ export {
   mapDbRowToPrisma,
   assertLockPrerequisites,
   queryRowForUpdate,
+  queryRowsForUpdate,
+  quoteIdentifier,
 } from './lock/row-lock';
 export { buildLockConfigFromSchema, buildLockConfigFromMeta } from './lock/build-lock-config';
 export { validateLockConfig } from './lock/validate-lock-config';
@@ -153,6 +172,21 @@ export { paginator, type PaginateOptions, type PaginateFunction } from './pagina
 export type { PaginatedResult } from './types/paginated-result.type';
 /** @deprecated Use PaginatedResult */
 export type { PaginatedResult as IPaginatedResult } from './types/paginated-result.type';
+
+// Telemetry
+export {
+  setTelemetry,
+  getTelemetryEnabled,
+  emitTelemetry,
+  type TelemetryEvent,
+  type TelemetryHandler,
+  type TelemetryOptions,
+  type CacheTelemetryEvent,
+  type ComposeTelemetryEvent,
+  type LockTelemetryEvent,
+  type StampedeTelemetryEvent,
+  type QueryTelemetryEvent,
+} from './telemetry/telemetry';
 
 // Utils
 export { splitSelect } from './utils/split-select';

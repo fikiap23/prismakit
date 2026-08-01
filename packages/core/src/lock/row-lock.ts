@@ -19,9 +19,10 @@ export function buildLockClause(opts: RowLockOptions): string {
   const mode = opts.mode ?? 'noKeyUpdate';
   const base = LOCK_MODE_SQL[mode];
 
-  if (opts.nowait) return `${base} NOWAIT`;
-  if (opts.skipLocked) return `${base} SKIP LOCKED`;
-  return base;
+  const parts = [base];
+  if (opts.nowait) parts.push('NOWAIT');
+  if (opts.skipLocked) parts.push('SKIP LOCKED');
+  return parts.join(' ');
 }
 
 export function selectToDbColumns(
@@ -53,7 +54,7 @@ export function mapDbRowToPrisma(
   return result;
 }
 
-function quoteIdentifier(name: string): string {
+export function quoteIdentifier(name: string): string {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
     throw new Error(`Invalid SQL identifier: ${name}`);
   }
@@ -91,12 +92,44 @@ export async function queryRowForUpdate(
     lock,
     idColumn = 'id',
   }: {
-    id: string;
+    id: string | Record<string, string>;
     select?: object;
     lock: RowLockOptions;
-    idColumn?: string;
+    idColumn?: string | string[];
   },
 ): Promise<Record<string, unknown> | null> {
+  const rows = await queryRowsForUpdate(tx, config, {
+    where: typeof id === 'string'
+      ? { [Array.isArray(idColumn) ? idColumn[0] : idColumn]: id }
+      : id,
+    select,
+    lock,
+    take: 1,
+  });
+  return rows[0] ?? null;
+}
+
+/**
+ * SELECT … FOR UPDATE with a simple equality WHERE (scalars only).
+ * Supports composite PKs and `getFirst`/`getMany` lock patterns.
+ *
+ * Only equality filters on known columns are supported (no nested Prisma filters).
+ */
+export async function queryRowsForUpdate(
+  tx: QueryRawClient,
+  config: RepositoryLockConfig,
+  {
+    where,
+    select,
+    lock,
+    take,
+  }: {
+    where: Record<string, unknown>;
+    select?: object;
+    lock: RowLockOptions;
+    take?: number;
+  },
+): Promise<Record<string, unknown>[]> {
   const columnMap = config.columns ?? {};
   const dbColumns = selectToDbColumns(select, columnMap);
 
@@ -107,13 +140,56 @@ export async function queryRowForUpdate(
 
   const lockClause = buildLockClause(lock);
   const table = quoteIdentifier(config.tableName);
-  const idCol = quoteIdentifier(columnMap[idColumn] ?? idColumn);
+
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  for (const [field, value] of Object.entries(where)) {
+    if (value === undefined) continue;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      // Skip complex Prisma filters — caller should use simple equality
+      const obj = value as Record<string, unknown>;
+      if ('in' in obj && Array.isArray(obj.in)) {
+        const placeholders = obj.in.map(() => `$${paramIndex++}`);
+        const col = quoteIdentifier(columnMap[field] ?? field);
+        conditions.push(`${col} IN (${placeholders.join(', ')})`);
+        values.push(...obj.in);
+        continue;
+      }
+      if ('equals' in obj) {
+        const col = quoteIdentifier(columnMap[field] ?? field);
+        conditions.push(`${col} = $${paramIndex++}`);
+        values.push(obj.equals);
+        continue;
+      }
+      throw new Error(
+        `Row lock WHERE only supports equality / in filters; got complex filter on "${field}"`,
+      );
+    }
+    const col = quoteIdentifier(columnMap[field] ?? field);
+    if (value === null) {
+      conditions.push(`${col} IS NULL`);
+    } else {
+      conditions.push(`${col} = $${paramIndex++}`);
+      values.push(value);
+    }
+  }
+
+  if (conditions.length === 0) {
+    throw new Error('Row lock WHERE must include at least one equality filter');
+  }
+
+  let sql = `SELECT ${selectClause} FROM ${table} WHERE ${conditions.join(' AND ')} ${lockClause}`;
+  if (typeof take === 'number' && take > 0) {
+    sql += ` LIMIT $${paramIndex++}`;
+    values.push(take);
+  }
 
   const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
-    `SELECT ${selectClause} FROM ${table} WHERE ${idCol} = $1 ${lockClause}`,
-    id,
+    sql,
+    ...values,
   );
 
-  if (!rows.length) return null;
-  return mapDbRowToPrisma(rows[0], columnMap);
+  return rows.map((row) => mapDbRowToPrisma(row, columnMap));
 }

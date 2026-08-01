@@ -3,6 +3,9 @@ export interface RegisteredRepository {
     getMany: (args: {
       where?: any;
       select?: any;
+      orderBy?: any;
+      take?: number;
+      skip?: number;
       setCache?: boolean;
     }) => Promise<any[]>;
   };

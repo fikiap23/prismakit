@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/eslint-plugin",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "ESLint rules enforcing PrismaKit data-access boundaries",
   "license": "Apache-2.0",
   "engines": {
@@ -19,6 +19,7 @@
   },
   "files": [
     "dist",
+    "src",
     "LICENSE",
     "README.md"
   ],

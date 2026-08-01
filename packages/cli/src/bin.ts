@@ -6,17 +6,18 @@ function printHelp(): void {
   console.log(`prismakit — PrismaKit CLI
 
 Usage:
-  prismakit generate <name> [--cache] [--full] [--route <path>] [--prisma-import <path>] [--dry-run]
+  prismakit generate <name> [--cache] [--full] [--helpers] [--dto] [--route <path>] [--prisma-import <path>] [--dry-run]
   prismakit codegen [--schema <path>] [--write] [--out <file>]
   prismakit validate [--no-assert]
   prismakit help
 
 By default, generate writes only the repository file.
 Pass --full for a Nest module (controller, service, types).
+Pass --helpers / --dto with --full for helpers and Swagger DTOs.
 
 Examples:
   prismakit generate product --cache
-  prismakit generate product --cache --full --route products
+  prismakit generate product --cache --full --helpers --dto --route products
   prismakit codegen --write
   prismakit validate
 `);
@@ -67,6 +68,8 @@ function main(): void {
           name,
           cache: !!flags.cache,
           full: !!flags.full,
+          helpers: !!flags.helpers,
+          dto: !!flags.dto,
           route:
             typeof flags.route === 'string' ? flags.route : undefined,
           prismaImport:

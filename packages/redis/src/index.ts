@@ -1,6 +1,7 @@
 export {
   RedisCacheAdapter,
   type RedisCacheAdapterOptions,
+  type RedisCompression,
 } from './redis-cache-adapter';
 
 export {

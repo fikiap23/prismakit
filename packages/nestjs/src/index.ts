@@ -20,6 +20,7 @@ export {
 export {
   TransactionService,
   type PrismaClientWithTransaction,
+  type TransactionOptions,
 } from './transaction.service';
 export {
   createInjectableRepository,
@@ -28,6 +29,7 @@ export {
 export {
   defineInjectableRepository,
   defineRepo,
+  defineRepository,
 } from './define-repository';
 export { createDefineRepo } from './create-define-repo';
 export {
@@ -59,7 +61,12 @@ export {
   type RepoTypesDefinition,
   type ToPayloadFromTypes,
   type PayloadFromTypes,
+  type ComposeOptions,
+  type TelemetryOptions,
+  type TelemetryEvent,
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
+  setComposeOptions,
+  setTelemetry,
   type PrismaDmmfLike,
 } from '@prismakit/core';

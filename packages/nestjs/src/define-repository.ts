@@ -131,3 +131,9 @@ export function defineInjectableRepository<
 
 /** Alias — shorter name for the same helper. */
 export const defineRepo = defineInjectableRepository;
+
+/**
+ * Preferred name going forward (same as {@link defineInjectableRepository}).
+ * Prefer `createDefineRepo<Prisma.TypeMap>()` for TypeMap-bound apps.
+ */
+export const defineRepository = defineInjectableRepository;

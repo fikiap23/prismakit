@@ -13,7 +13,8 @@ type ClientLike = { [key: string]: unknown };
 type MutationTags<TPayload> =
   | string[]
   | null
-  | ((result: TPayload) => string[] | null);
+  | undefined
+  | ((result: TPayload) => string[] | null | undefined);
 
 type CacheIdRead<THasCache extends boolean> = THasCache extends true
   ? { setCache?: boolean }
@@ -30,6 +31,7 @@ type CacheQueryRead<TWhereInput, THasCache extends boolean> =
 type CacheMutation<TPayload, THasCache extends boolean> = THasCache extends true
   ? {
       invalidate?: InvalidateMode;
+      /** Optional; omit or pass undefined — no need for `tags: null`. */
       tags?: MutationTags<TPayload>;
     }
   : {};
@@ -64,9 +66,17 @@ export type RepositoryApi<
     } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T>>;
 
+  createMany(
+    args: {
+      tx?: ClientLike;
+      data: TCreateInput[];
+      skipDuplicates?: boolean;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
+
   getById<T extends TSelect>(
     params: {
-      id: string;
+      id: string | Record<string, string>;
       select?: T;
       tx?: ClientLike;
       lock?: RowLockOptions;
@@ -75,7 +85,7 @@ export type RepositoryApi<
 
   getThrowById<T extends TSelect>(
     params: {
-      id: string;
+      id: string | Record<string, string>;
       select?: T;
       tx?: ClientLike;
       lock?: RowLockOptions;
@@ -87,6 +97,7 @@ export type RepositoryApi<
       tx?: ClientLike;
       where?: TWhereInput;
       select?: T;
+      lock?: RowLockOptions;
     } & CacheQueryRead<TWhereInput, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T> | null>;
 
@@ -98,6 +109,7 @@ export type RepositoryApi<
       orderBy?: TOrderBy;
       take?: number;
       skip?: number;
+      lock?: RowLockOptions;
     } & CacheQueryRead<TWhereInput, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T>[]>;
 
@@ -115,8 +127,26 @@ export type RepositoryApi<
   updateById<T extends TSelect>(
     args: {
       tx?: ClientLike;
-      id: string;
+      id: string | Record<string, string>;
       data: TUpdateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
+
+  updateMany(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
+      data: TUpdateInput;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
+
+  upsert<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
+      create: TCreateInput;
+      update: TUpdateInput;
       select?: T;
     } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T>>;
@@ -124,10 +154,17 @@ export type RepositoryApi<
   deleteById<T extends TSelect>(
     args: {
       tx?: ClientLike;
-      id: string;
+      id: string | Record<string, string>;
       select?: T;
     } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T>>;
+
+  deleteMany(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
 } & InvalidateCacheMethod<THasCache>;
 
 /** Repository API derived from a {@link RepoTypesDefinition} bag. */

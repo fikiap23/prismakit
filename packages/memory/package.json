@@ -1,0 +1,61 @@
+{
+  "name": "@prismakit/memory",
+  "version": "2.2.0",
+  "description": "In-memory CacheAdapter for @prismakit/core (tests and local dev)",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@prismakit/core": ">=2.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fikiap23/prismakit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fikiap23/prismakit/issues"
+  },
+  "homepage": "https://github.com/fikiap23/prismakit/tree/master/packages/memory#readme",
+  "keywords": [
+    "prisma",
+    "cache",
+    "memory",
+    "prismakit"
+  ]
+}

@@ -53,4 +53,25 @@ export const UserRepository = createInjectableRepository({
 
 Register `UserRepository` in feature `providers`. Never inject `prisma` into services.
 
+## New features (2.x)
+
+| Feature | How to use |
+|---------|------------|
+| `defaultSetCache` | `cache: { ttl, defaultSetCache: true }` so reads cache unless you pass `setCache: false` |
+| Telemetry | `PrismaKitModule.forRoot({ telemetry: { enabled: true, onEvent } })` or `setTelemetry(...)` |
+| `autoRegisterModels` | `forRoot({ schemaPath, autoRegisterModels: true })` (or an explicit model list) to fill `cacheModels` |
+| `MemoryCacheAdapter` | Prefer `@prismakit/memory` over a hand-rolled adapter for tests / local dev |
+
+```typescript
+import { MemoryCacheAdapter } from '@prismakit/memory';
+
+PrismaKitModule.forRoot({
+  prisma,
+  cache: new MemoryCacheAdapter({ prefix: 'example' }),
+  cacheModels: ['user'],
+  autoRegisterModels: true,
+  telemetry: { enabled: true, onEvent: (e) => console.debug(e) },
+});
+```
+
 See [Getting started](../../docs/getting-started.md) and [Rules](../../docs/RULES.md).
