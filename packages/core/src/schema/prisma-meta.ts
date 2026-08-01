@@ -137,7 +137,8 @@ export function buildPrismaMetaFromDmmf(
       const kind: RelationKind = field.isList ? 'many' : 'one';
 
       let targetFk: string | undefined;
-      if (kind === 'many') {
+      // many + reverse one (FK on target, e.g. UsagePart.sparepart → sourceUsagePartId)
+      if (kind === 'many' || (kind === 'one' && from.length === 0)) {
         targetFk = findOppositeLocalFk(target, model.name, field.relationName);
       }
 
@@ -198,7 +199,7 @@ export function buildPrismaMetaFromSchemaModels(
       const from = [...(field.relationFromFields ?? [])];
       const to = [...(field.relationToFields ?? [])];
       let targetFk: string | undefined;
-      if (kind === 'many') {
+      if (kind === 'many' || (kind === 'one' && from.length === 0)) {
         targetFk = findOppositeLocalFkFromSchema(
           target,
           model.name,

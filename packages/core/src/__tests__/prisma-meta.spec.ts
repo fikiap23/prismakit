@@ -154,6 +154,76 @@ describe('prisma meta / free naming', () => {
     expect(relations).toHaveProperty('editor');
   });
 
+  it('builds targetFk for reverse one-to-one relations', () => {
+    const dmmf: PrismaDmmfLike = {
+      datamodel: {
+        models: [
+          {
+            name: 'UsagePart',
+            dbName: 'usage_parts',
+            primaryKey: null,
+            fields: [
+              {
+                name: 'id',
+                kind: 'scalar',
+                type: 'String',
+                isList: false,
+                isId: true,
+              },
+              {
+                name: 'sparepart',
+                kind: 'object',
+                type: 'Sparepart',
+                isList: false,
+                relationName: 'UsagePartSparepart',
+                relationFromFields: [],
+                relationToFields: [],
+              },
+            ],
+          },
+          {
+            name: 'Sparepart',
+            dbName: 'spareparts',
+            primaryKey: null,
+            fields: [
+              {
+                name: 'id',
+                kind: 'scalar',
+                type: 'String',
+                isList: false,
+                isId: true,
+              },
+              {
+                name: 'sourceUsagePartId',
+                kind: 'scalar',
+                type: 'String',
+                isList: false,
+                dbName: 'source_usage_part_id',
+              },
+              {
+                name: 'sourceUsagePart',
+                kind: 'object',
+                type: 'UsagePart',
+                isList: false,
+                relationName: 'UsagePartSparepart',
+                relationFromFields: ['sourceUsagePartId'],
+                relationToFields: ['id'],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const meta = buildPrismaMetaFromDmmf(dmmf);
+    expect(meta.usagePart.relations.sparepart).toMatchObject({
+      kind: 'one',
+      localFields: [],
+      targetFk: 'sourceUsagePartId',
+      targetModel: 'sparepart',
+    });
+  });
+
   it('resolveRelationModel prefers DMMF target over aliases', () => {
     loadPrismaMetaFromDmmf(sampleDmmf);
     const registry = new RepositoryRegistry();

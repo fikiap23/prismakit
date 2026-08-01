@@ -182,13 +182,7 @@ export class AutoComposer {
 
       const isOne = relMeta?.kind === 'one' || (!relMeta && !!localFk);
 
-      if (isOne) {
-        if (!localFk) {
-          entities.forEach((e: any) => {
-            e[relKey] = null;
-          });
-          return;
-        }
+      if (isOne && localFk) {
         const fkField = localFk;
         const ids = [
           ...new Set(
@@ -220,6 +214,59 @@ export class AutoComposer {
         const entityMap = new Map(related.map((e) => [e[targetPk], e]));
         entities.forEach((e: any) => {
           e[relKey] = e[fkField] ? (entityMap.get(e[fkField]) ?? null) : null;
+        });
+      } else if (isOne && !localFk) {
+        // Reverse 1:1 — FK lives on the target model (e.g. Sparepart.sourceUsagePartId).
+        const targetFk = relMeta?.targetFk ?? `${sourceModel}Id`;
+
+        if (!targetFk) {
+          entities.forEach((e: any) => {
+            e[relKey] = null;
+          });
+          return;
+        }
+
+        if (targetDbSelect && targetScalars && targetFk in targetScalars) {
+          targetDbSelect = { ...targetDbSelect, [targetFk]: true };
+        }
+
+        const parentIds = entities.map((e) => e[sourcePk]);
+
+        let related: any[] = [];
+        if (parentIds.length) {
+          onQuery();
+          related = await target.repository.getMany({
+            where: {
+              [targetFk]: { in: parentIds },
+              ...(nestedWhere ?? {}),
+            },
+            select: targetDbSelect,
+            orderBy: nestedOrderBy,
+            take: nestedTake,
+            setCache: opts.setCache,
+          });
+
+          if (Object.keys(targetRelations).length > 0) {
+            await this.composeLevel(
+              related,
+              targetRelations,
+              targetModel,
+              depth + 1,
+              opts,
+              onQuery,
+            );
+          }
+        }
+
+        const entityMap = new Map<string, any>();
+        for (const e of related) {
+          const fkValue = e[targetFk];
+          if (!fkValue || entityMap.has(fkValue)) continue;
+          entityMap.set(fkValue, e);
+        }
+
+        entities.forEach((e: any) => {
+          e[relKey] = entityMap.get(e[sourcePk]) ?? null;
         });
       } else {
         const targetFk = relMeta?.targetFk ?? `${sourceModel}Id`;

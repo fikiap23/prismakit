@@ -1,5 +1,11 @@
 # @prismakit/core
 
+## 2.2.2
+
+### Patch Changes
+
+- Fix AutoComposer reverse one-to-one relations (e.g. UsagePart.sparepart) so nested selects resolve via target FK instead of returning null.
+
 ## 2.1.1
 
 ### Patch Changes
