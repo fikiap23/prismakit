@@ -29,6 +29,11 @@ export function entityIndexKey(
   return `${prefix}:repo:${model}:e:${id}:__idx`;
 }
 
+/** Tracks all per-id entity index keys for a model (used by invalidate:'all'). */
+export function entityAllIndexKey(prefix: string, model: string): string {
+  return `${prefix}:repo:${model}:e:__idx`;
+}
+
 export function queryIndexKey(prefix: string, model: string): string {
   return `${prefix}:repo:${model}:q:__idx`;
 }

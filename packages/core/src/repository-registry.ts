@@ -7,6 +7,7 @@ export interface RegisteredRepository {
       take?: number;
       skip?: number;
       setCache?: boolean;
+      tx?: any;
     }) => Promise<any[]>;
   };
   scalarFields?: Record<string, string>;

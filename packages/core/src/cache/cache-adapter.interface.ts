@@ -1,6 +1,11 @@
 /**
  * Pluggable cache backend for repository cache-aside and invalidation.
  * Implementations should throw from low-level ops; safe* wrappers must fail-open.
+ *
+ * **Contract:** {@link CacheAdapter.get} / {@link CacheAdapter.safeGet} MUST return
+ * a fresh copy of the stored value (structuredClone, JSON round-trip, etc.).
+ * AutoComposer mutates entities in place; returning a live reference will corrupt
+ * the cache for subsequent readers.
  */
 export interface CacheAdapter {
   get<T>(key: string): Promise<T | null>;

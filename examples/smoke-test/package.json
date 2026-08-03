@@ -1,0 +1,28 @@
+{
+  "name": "@prismakit/example-smoke-test",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Real Prisma + PrismaKit smoke test (SQLite, no Docker)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push --skip-generate",
+    "db:reset-file": "rm -f prisma/dev.db prisma/dev.db-journal",
+    "db:ready": "pnpm prisma:generate && pnpm db:reset-file && pnpm prisma:push",
+    "smoke": "tsx src/smoke.ts",
+    "test": "pnpm db:ready && pnpm smoke",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@prismakit/core": "workspace:*",
+    "@prismakit/memory": "workspace:*",
+    "@prisma/client": "^6.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.9.2"
+  }
+}

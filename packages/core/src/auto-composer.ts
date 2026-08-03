@@ -6,8 +6,11 @@ import {
   getComposeOptions,
   mergeComposeOptions,
   type ComposeOptions,
+  type ResolvedComposeOptions,
 } from './compose/compose-options';
 import { emitTelemetry } from './telemetry/telemetry';
+
+const COMPOSITE_KEY_SEP = '\u0000';
 
 /**
  * Ensure relation target rows include the primary key so AutoComposer can map
@@ -16,13 +19,153 @@ import { emitTelemetry } from './telemetry/telemetry';
  */
 export function ensureSelectPrimaryKey(
   select: Record<string, any> | undefined,
-  primaryKey: string,
+  primaryKey: string | string[],
   scalarFields?: Record<string, string>,
 ): Record<string, any> | undefined {
   if (!select) return select;
-  if (scalarFields && !(primaryKey in scalarFields)) return select;
-  if (select[primaryKey] === true) return select;
-  return { ...select, [primaryKey]: true };
+  const keys = Array.isArray(primaryKey) ? primaryKey : [primaryKey];
+  let next = select;
+  for (const pk of keys) {
+    if (scalarFields && !(pk in scalarFields)) continue;
+    if (next[pk] === true) continue;
+    next = { ...next, [pk]: true };
+  }
+  return next;
+}
+
+function ensureSelectFields(
+  select: Record<string, any> | undefined,
+  fields: string[],
+  scalarFields?: Record<string, string>,
+): Record<string, any> | undefined {
+  if (!select || fields.length === 0) return select;
+  let next = select;
+  for (const field of fields) {
+    if (scalarFields && !(field in scalarFields)) continue;
+    if (next[field] === true) continue;
+    next = { ...next, [field]: true };
+  }
+  return next;
+}
+
+function compositeKey(values: unknown[]): string {
+  return values.map((v) => String(v)).join(COMPOSITE_KEY_SEP);
+}
+
+function isPresent(value: unknown): boolean {
+  return value !== null && value !== undefined;
+}
+
+/** Clone so parents never share the same relation object graph. */
+function cloneAttachedRow<T extends Record<string, any>>(row: T): T {
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(row);
+    } catch {
+      /* fall through */
+    }
+  }
+  return { ...row };
+}
+
+function uniqueTuplesFrom(
+  entities: Record<string, any>[],
+  fields: string[],
+): unknown[][] {
+  const uniqueByKey = new Map<string, unknown[]>();
+  for (const e of entities) {
+    const vals = fields.map((f) => e[f]);
+    if (!vals.every(isPresent)) continue;
+    uniqueByKey.set(compositeKey(vals), vals);
+  }
+  return [...uniqueByKey.values()];
+}
+
+function whereFromTuples(
+  fields: string[],
+  tuples: unknown[][],
+): Record<string, unknown> {
+  if (fields.length === 1) {
+    return { [fields[0]]: { in: tuples.map((vals) => vals[0]) } };
+  }
+  return {
+    OR: tuples.map((vals) => {
+      const clause: Record<string, unknown> = {};
+      fields.forEach((f, i) => {
+        clause[f] = vals[i];
+      });
+      return clause;
+    }),
+  };
+}
+
+function mergeWhereWithFk(
+  fkWhere: Record<string, unknown>,
+  nestedWhere?: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!nestedWhere || Object.keys(nestedWhere).length === 0) return fkWhere;
+  return { AND: [fkWhere, nestedWhere] };
+}
+
+function extractNestedArgs(relationSelect: unknown): {
+  targetDbSelect: Record<string, any> | undefined;
+  nestedWhere: Record<string, unknown> | undefined;
+  nestedOrderBy: unknown;
+  nestedTake: number | undefined;
+} {
+  if (relationSelect === true) {
+    return {
+      targetDbSelect: undefined,
+      nestedWhere: undefined,
+      nestedOrderBy: undefined,
+      nestedTake: undefined,
+    };
+  }
+  if (!relationSelect || typeof relationSelect !== 'object') {
+    return {
+      targetDbSelect: undefined,
+      nestedWhere: undefined,
+      nestedOrderBy: undefined,
+      nestedTake: undefined,
+    };
+  }
+  const rel = relationSelect as Record<string, any>;
+  const nestedWhere =
+    rel.where && typeof rel.where === 'object' ? rel.where : undefined;
+  const nestedOrderBy = rel.orderBy;
+  const nestedTake = typeof rel.take === 'number' ? rel.take : undefined;
+
+  // Relation args without `select` (only where/orderBy/take) → empty scalar select
+  if (!('select' in rel) && (nestedWhere || nestedOrderBy || nestedTake !== undefined)) {
+    return {
+      targetDbSelect: {},
+      nestedWhere,
+      nestedOrderBy,
+      nestedTake,
+    };
+  }
+
+  return {
+    targetDbSelect: rel.select ?? rel,
+    nestedWhere,
+    nestedOrderBy,
+    nestedTake,
+  };
+}
+
+function fillMissingRelations(
+  entities: Record<string, any>[],
+  relations: Record<string, any>,
+  sourceModel: string,
+): void {
+  const sourceMeta = getModelMeta(sourceModel);
+  for (const relKey of Object.keys(relations)) {
+    const kind = sourceMeta?.relations[relKey]?.kind;
+    const empty = kind === 'many' ? [] : null;
+    for (const e of entities) {
+      if (e[relKey] === undefined) e[relKey] = empty;
+    }
+  }
 }
 
 export class AutoComposer {
@@ -92,7 +235,7 @@ export class AutoComposer {
     relations: Record<string, any>,
     sourceModel: string,
     depth: number,
-    opts: Required<ComposeOptions>,
+    opts: ResolvedComposeOptions,
     onQuery: () => void,
   ): Promise<void> {
     if (!entities.length || !Object.keys(relations).length) return;
@@ -101,6 +244,14 @@ export class AutoComposer {
       console.warn(
         `[AutoComposer] maxDepth=${opts.maxDepth} reached for model "${sourceModel}" — skipping deeper relations`,
       );
+      fillMissingRelations(entities, relations, sourceModel);
+      emitTelemetry({
+        type: 'compose.complete',
+        model: sourceModel,
+        relationCount: Object.keys(relations).length,
+        queryCount: 0,
+        durationMs: 0,
+      });
       return;
     }
 
@@ -109,11 +260,21 @@ export class AutoComposer {
     const sourceScalarFields =
       source?.scalarFields ?? sourceMeta?.scalarFields ?? {};
     const sourcePk = sourceMeta?.primaryKey ?? 'id';
+    const sourcePkFields = Array.isArray(sourcePk) ? sourcePk : [sourcePk];
 
     const relKeys = Object.keys(relations);
 
     const runOne = async (relKey: string) => {
       const relMeta = sourceMeta?.relations[relKey];
+
+      if (relMeta?.implicitManyToMany) {
+        throw new Error(
+          `[AutoComposer] Relation "${sourceModel}.${relKey}" is an implicit many-to-many. ` +
+            `PrismaKit cannot auto-compose implicit m:n — use an explicit join model ` +
+            `(e.g. PostTag) in the select, or load via Prisma include outside AutoComposer.`,
+        );
+      }
+
       const targetModel = resolveRelationModel(
         relKey,
         this.registry,
@@ -122,12 +283,11 @@ export class AutoComposer {
       const target = this.registry.getOrThrow(targetModel);
       const targetMeta = getModelMeta(targetModel);
       const targetPk = targetMeta?.primaryKey ?? 'id';
+      const targetPkFields = Array.isArray(targetPk) ? targetPk : [targetPk];
       const relationSelect = relations[relKey];
 
-      let targetDbSelect: Record<string, any> | undefined =
-        relationSelect === true
-          ? undefined
-          : relationSelect.select || relationSelect;
+      let { targetDbSelect, nestedWhere, nestedOrderBy, nestedTake } =
+        extractNestedArgs(relationSelect);
       let targetRelations: Record<string, any> = {};
 
       const targetScalars = target.scalarFields ?? targetMeta?.scalarFields;
@@ -156,47 +316,37 @@ export class AutoComposer {
         targetScalars,
       );
 
-      // Preserve where/orderBy/take from Prisma-style nested select args
-      const nestedWhere =
-        relationSelect &&
-        typeof relationSelect === 'object' &&
-        relationSelect.where
-          ? relationSelect.where
-          : undefined;
-      const nestedOrderBy =
-        relationSelect &&
-        typeof relationSelect === 'object' &&
-        relationSelect.orderBy
-          ? relationSelect.orderBy
-          : undefined;
-      const nestedTake =
-        relationSelect &&
-        typeof relationSelect === 'object' &&
-        typeof relationSelect.take === 'number'
-          ? relationSelect.take
-          : undefined;
+      const localFields =
+        relMeta?.localFields?.length
+          ? [...relMeta.localFields]
+          : `${relKey}Id` in sourceScalarFields
+            ? [`${relKey}Id`]
+            : [];
+      const foreignFields =
+        relMeta?.foreignFields?.length
+          ? [...relMeta.foreignFields]
+          : [...targetPkFields];
 
-      const localFk =
-        relMeta?.localFields[0] ??
-        (`${relKey}Id` in sourceScalarFields ? `${relKey}Id` : undefined);
+      const isOne = relMeta?.kind === 'one' || (!relMeta && localFields.length > 0);
 
-      const isOne = relMeta?.kind === 'one' || (!relMeta && !!localFk);
+      if (isOne && localFields.length > 0) {
+        // Owning to-one — FK on source
+        targetDbSelect = ensureSelectFields(
+          targetDbSelect,
+          foreignFields,
+          targetScalars,
+        );
 
-      if (isOne && localFk) {
-        const fkField = localFk;
-        const ids = [
-          ...new Set(
-            entities.map((e) => e[fkField]).filter((id): id is string => !!id),
-          ),
-        ];
+        const uniqueTuples = uniqueTuplesFrom(entities, localFields);
 
         let related: any[] = [];
-        if (ids.length) {
+        if (uniqueTuples.length) {
           onQuery();
           related = await target.repository.getMany({
-            where: { [targetPk]: { in: ids } },
+            where: whereFromTuples(foreignFields, uniqueTuples),
             select: targetDbSelect,
             setCache: opts.setCache,
+            tx: opts.tx,
           });
 
           if (Object.keys(targetRelations).length > 0) {
@@ -211,39 +361,59 @@ export class AutoComposer {
           }
         }
 
-        const entityMap = new Map(related.map((e) => [e[targetPk], e]));
+        const entityMap = new Map(
+          related.map((e) => [
+            compositeKey(foreignFields.map((f) => e[f])),
+            e,
+          ]),
+        );
         entities.forEach((e: any) => {
-          e[relKey] = e[fkField] ? (entityMap.get(e[fkField]) ?? null) : null;
-        });
-      } else if (isOne && !localFk) {
-        // Reverse 1:1 — FK lives on the target model (e.g. Sparepart.sourceUsagePartId).
-        const targetFk = relMeta?.targetFk ?? `${sourceModel}Id`;
-
-        if (!targetFk) {
-          entities.forEach((e: any) => {
+          const vals = localFields.map((f) => e[f]);
+          if (!vals.every(isPresent)) {
             e[relKey] = null;
-          });
-          return;
-        }
+            return;
+          }
+          const hit = entityMap.get(compositeKey(vals));
+          // Clone so siblings with the same FK do not share one mutable object
+          e[relKey] = hit ? cloneAttachedRow(hit) : null;
+        });
+      } else if (isOne && localFields.length === 0) {
+        // Reverse 1:1 — FK lives on the target model
+        const targetFkFields =
+          relMeta?.targetFkFields?.length
+            ? [...relMeta.targetFkFields]
+            : relMeta?.targetFk
+              ? [relMeta.targetFk]
+              : [`${sourceModel}Id`];
 
-        if (targetDbSelect && targetScalars && targetFk in targetScalars) {
-          targetDbSelect = { ...targetDbSelect, [targetFk]: true };
-        }
+        this.assertTargetFkFields(
+          sourceModel,
+          relKey,
+          targetModel,
+          targetFkFields,
+          targetScalars,
+        );
 
-        const parentIds = entities.map((e) => e[sourcePk]);
+        targetDbSelect = ensureSelectFields(
+          targetDbSelect,
+          targetFkFields,
+          targetScalars,
+        );
+
+        const uniqueParentTuples = uniqueTuplesFrom(entities, sourcePkFields);
 
         let related: any[] = [];
-        if (parentIds.length) {
+        if (uniqueParentTuples.length) {
           onQuery();
           related = await target.repository.getMany({
-            where: {
-              [targetFk]: { in: parentIds },
-              ...(nestedWhere ?? {}),
-            },
+            where: mergeWhereWithFk(
+              whereFromTuples(targetFkFields, uniqueParentTuples),
+              nestedWhere,
+            ),
             select: targetDbSelect,
             orderBy: nestedOrderBy,
-            take: nestedTake,
             setCache: opts.setCache,
+            tx: opts.tx,
           });
 
           if (Object.keys(targetRelations).length > 0) {
@@ -260,35 +430,53 @@ export class AutoComposer {
 
         const entityMap = new Map<string, any>();
         for (const e of related) {
-          const fkValue = e[targetFk];
-          if (!fkValue || entityMap.has(fkValue)) continue;
-          entityMap.set(fkValue, e);
+          const key = compositeKey(targetFkFields.map((f) => e[f]));
+          if (!key || entityMap.has(key)) continue;
+          entityMap.set(key, e);
         }
 
         entities.forEach((e: any) => {
-          e[relKey] = entityMap.get(e[sourcePk]) ?? null;
+          const key = compositeKey(sourcePkFields.map((f) => e[f]));
+          const hit = entityMap.get(key);
+          e[relKey] = hit ? cloneAttachedRow(hit) : null;
         });
       } else {
-        const targetFk = relMeta?.targetFk ?? `${sourceModel}Id`;
+        // To-many
+        const targetFkFields =
+          relMeta?.targetFkFields?.length
+            ? [...relMeta.targetFkFields]
+            : relMeta?.targetFk
+              ? [relMeta.targetFk]
+              : [`${sourceModel}Id`];
 
-        if (targetDbSelect && targetScalars && targetFk in targetScalars) {
-          targetDbSelect = { ...targetDbSelect, [targetFk]: true };
-        }
+        this.assertTargetFkFields(
+          sourceModel,
+          relKey,
+          targetModel,
+          targetFkFields,
+          targetScalars,
+        );
 
-        const parentIds = entities.map((e) => e[sourcePk]);
+        targetDbSelect = ensureSelectFields(
+          targetDbSelect,
+          targetFkFields,
+          targetScalars,
+        );
+
+        const uniqueParentTuples = uniqueTuplesFrom(entities, sourcePkFields);
 
         let related: any[] = [];
-        if (parentIds.length) {
+        if (uniqueParentTuples.length) {
           onQuery();
           related = await target.repository.getMany({
-            where: {
-              [targetFk]: { in: parentIds },
-              ...(nestedWhere ?? {}),
-            },
+            where: mergeWhereWithFk(
+              whereFromTuples(targetFkFields, uniqueParentTuples),
+              nestedWhere,
+            ),
             select: targetDbSelect,
             orderBy: nestedOrderBy,
-            take: nestedTake,
             setCache: opts.setCache,
+            tx: opts.tx,
           });
 
           if (Object.keys(targetRelations).length > 0) {
@@ -303,17 +491,24 @@ export class AutoComposer {
           }
         }
 
+        // Preserve getMany orderBy within each parent group, then take
         const entityMap = new Map<string, any[]>();
         for (const e of related) {
-          const fkValue = e[targetFk];
-          if (!fkValue) continue;
-          const list = entityMap.get(fkValue) ?? [];
+          const key = compositeKey(targetFkFields.map((f) => e[f]));
+          if (!key || key === String(undefined)) continue;
+          const list = entityMap.get(key) ?? [];
           list.push(e);
-          entityMap.set(fkValue, list);
+          entityMap.set(key, list);
         }
 
         entities.forEach((e: any) => {
-          e[relKey] = entityMap.get(e[sourcePk]) ?? [];
+          const key = compositeKey(sourcePkFields.map((f) => e[f]));
+          let list = entityMap.get(key) ?? [];
+          if (typeof nestedTake === 'number' && nestedTake >= 0) {
+            list = list.slice(0, nestedTake);
+          }
+          // Clone rows + new array so parents never share mutable lists/rows
+          e[relKey] = list.map((row) => cloneAttachedRow(row));
         });
       }
     };
@@ -325,6 +520,23 @@ export class AutoComposer {
         await runOne(k);
       }
     }
+  }
+
+  private assertTargetFkFields(
+    sourceModel: string,
+    relKey: string,
+    targetModel: string,
+    targetFkFields: string[],
+    targetScalars?: Record<string, string>,
+  ): void {
+    if (!targetScalars) return;
+    const missing = targetFkFields.filter((f) => !(f in targetScalars));
+    if (missing.length === 0) return;
+    throw new Error(
+      `[AutoComposer] Cannot resolve FK for "${sourceModel}.${relKey}" → "${targetModel}". ` +
+        `Expected target field(s) [${missing.join(', ')}] but they are not scalars on "${targetModel}". ` +
+        `Load Prisma meta (loadPrismaMetaFromDmmf) or register relation aliases.`,
+    );
   }
 }
 

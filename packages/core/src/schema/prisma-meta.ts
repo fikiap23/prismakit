@@ -18,13 +18,20 @@ export type RelationMeta = {
   kind: RelationKind;
   /** FK scalar fields on the *source* row (to-one). Empty for to-many. */
   localFields: string[];
-  /** Referenced PK fields on the *target* row (to-one). */
+  /** Referenced fields on the *target* row (to-one) — PK or unique. */
   foreignFields: string[];
   /**
-   * FK scalar field on the *target* row used to group children (to-many).
-   * Derived from the opposite relation's `relationFromFields[0]`.
+   * First FK scalar field on the *target* row used to group children (to-many /
+   * reverse to-one). Derived from the opposite relation's `relationFromFields`.
    */
   targetFk?: string;
+  /** Full opposite FK field list (composite-aware). */
+  targetFkFields?: string[];
+  /**
+   * True when both sides are lists with empty `relationFromFields`
+   * (Prisma implicit many-to-many). AutoComposer cannot load these.
+   */
+  implicitManyToMany?: boolean;
   /** Shared Prisma `@relation("…")` name when present. */
   relationName?: string;
 };
@@ -36,8 +43,8 @@ export type ModelMeta = {
   modelName: string;
   /** DB table name (`@@map` or model name). */
   dbTable: string;
-  /** Single-field primary key (composite PKs omitted → undefined). */
-  primaryKey?: string;
+  /** Primary key field, or array for composite `@@id`. */
+  primaryKey?: string | string[];
   /** Scalar + enum field names → themselves (ScalarFieldEnum shape). */
   scalarFields: Record<string, string>;
   /** Prisma field → DB column (`@map` or field name). */
@@ -111,9 +118,11 @@ export function buildPrismaMetaFromDmmf(
     const columnMap: Record<string, string> = {};
     const relations: Record<string, RelationMeta> = {};
 
-    let primaryKey: string | undefined;
+    let primaryKey: string | string[] | undefined;
     if (model.primaryKey?.fields?.length === 1) {
       primaryKey = model.primaryKey.fields[0];
+    } else if (model.primaryKey?.fields && model.primaryKey.fields.length > 1) {
+      primaryKey = [...model.primaryKey.fields];
     } else {
       const idField = model.fields.find((f) => f.isId);
       if (idField) primaryKey = idField.name;
@@ -137,10 +146,31 @@ export function buildPrismaMetaFromDmmf(
       const kind: RelationKind = field.isList ? 'many' : 'one';
 
       let targetFk: string | undefined;
+      let targetFkFields: string[] | undefined;
       // many + reverse one (FK on target, e.g. UsagePart.sparepart → sourceUsagePartId)
       if (kind === 'many' || (kind === 'one' && from.length === 0)) {
-        targetFk = findOppositeLocalFk(target, model.name, field.relationName);
+        targetFkFields = findOppositeLocalFkFields(
+          target,
+          model.name,
+          field.relationName,
+        );
+        targetFk = targetFkFields?.[0];
       }
+
+      const oppositeIsList = target.fields.some(
+        (f) =>
+          f.kind === 'object' &&
+          f.type === model.name &&
+          f.isList &&
+          (!field.relationName ||
+            !f.relationName ||
+            f.relationName === field.relationName),
+      );
+      const implicitManyToMany =
+        kind === 'many' &&
+        from.length === 0 &&
+        oppositeIsList &&
+        (!targetFkFields || targetFkFields.length === 0);
 
       relations[field.name] = {
         targetModel,
@@ -149,6 +179,8 @@ export function buildPrismaMetaFromDmmf(
         localFields: from,
         foreignFields: to,
         targetFk,
+        targetFkFields,
+        implicitManyToMany: implicitManyToMany || undefined,
         relationName: field.relationName ?? undefined,
       };
     }
@@ -199,13 +231,30 @@ export function buildPrismaMetaFromSchemaModels(
       const from = [...(field.relationFromFields ?? [])];
       const to = [...(field.relationToFields ?? [])];
       let targetFk: string | undefined;
+      let targetFkFields: string[] | undefined;
       if (kind === 'many' || (kind === 'one' && from.length === 0)) {
-        targetFk = findOppositeLocalFkFromSchema(
+        targetFkFields = findOppositeLocalFkFieldsFromSchema(
           target,
           model.name,
           field.relationName,
         );
+        targetFk = targetFkFields?.[0];
       }
+
+      const oppositeIsList = target.fields.some(
+        (f) =>
+          f.kind === 'relation' &&
+          f.typeName === model.name &&
+          f.isList &&
+          (!field.relationName ||
+            !f.relationName ||
+            f.relationName === field.relationName),
+      );
+      const implicitManyToMany =
+        kind === 'many' &&
+        from.length === 0 &&
+        oppositeIsList &&
+        (!targetFkFields || targetFkFields.length === 0);
 
       relations[field.name] = {
         targetModel: pascalToRepoKey(field.typeName),
@@ -214,6 +263,8 @@ export function buildPrismaMetaFromSchemaModels(
         localFields: from,
         foreignFields: to,
         targetFk,
+        targetFkFields,
+        implicitManyToMany: implicitManyToMany || undefined,
         relationName: field.relationName,
       };
     }
@@ -250,9 +301,15 @@ export function loadPrismaMetaFromSchema(schemaPath?: string): PrismaMetaRegistr
 }
 
 /**
- * Build metadata from Prisma 7 `runtimeDataModel` (no relationFromFields).
- * FKs fall back to `${relation}Id` when present as scalars; prefer
- * {@link loadPrismaMetaFromSchema} for free FK naming.
+ * Build metadata from Prisma 7 `runtimeDataModel` (often missing relationFromFields).
+ *
+ * Prefer {@link loadPrismaMetaFromDmmf} / {@link loadPrismaMetaFromSchema} for
+ * free FK naming. This builder:
+ * - uses `${relation}Id` when that scalar exists (owning to-one)
+ * - detects reverse 1:1 when the opposite model owns a non-list FK back
+ * - otherwise treats the relation as to-many
+ * - honors optional `isList` / `relationFromFields` / `relationToFields` / `isId`
+ *   when the runtime payload provides them
  */
 export function buildPrismaMetaFromRuntimeDataModel(
   runtime: {
@@ -266,6 +323,10 @@ export function buildPrismaMetaFromRuntimeDataModel(
           type: string;
           dbName?: string | null;
           relationName?: string | null;
+          isList?: boolean;
+          isId?: boolean;
+          relationFromFields?: readonly string[];
+          relationToFields?: readonly string[];
         }>;
       }
     >;
@@ -280,16 +341,29 @@ export function buildPrismaMetaFromRuntimeDataModel(
         name: f.name,
         kind: f.kind,
         type: f.type,
-        isList: false,
-        isId: f.name === 'id' && f.kind === 'scalar',
+        isList: f.isList ?? false,
+        isId:
+          f.isId ??
+          (f.name === 'id' && (f.kind === 'scalar' || f.kind === 'enum')),
         dbName: f.dbName,
         relationName: f.relationName,
-        relationFromFields: [] as string[],
-        relationToFields: [] as string[],
+        relationFromFields: [...(f.relationFromFields ?? [])],
+        relationToFields: [...(f.relationToFields ?? [])],
       })),
     }),
   );
 
+  // Track which object fields had an explicit isList from the runtime payload
+  const explicitList = new Set<string>();
+  for (const [modelName, model] of Object.entries(runtime.models)) {
+    for (const f of model.fields) {
+      if (f.kind === 'object' && typeof f.isList === 'boolean') {
+        explicitList.add(`${modelName}.${f.name}`);
+      }
+    }
+  }
+
+  // Infer owning to-one from `${field}Id` when from-fields absent
   for (const model of dmmfModels) {
     const scalarNames = new Set(
       model.fields
@@ -298,12 +372,27 @@ export function buildPrismaMetaFromRuntimeDataModel(
     );
     for (const field of model.fields) {
       if (field.kind !== 'object') continue;
+      if ((field.relationFromFields?.length ?? 0) > 0) {
+        field.isList = false;
+        continue;
+      }
+
+      const key = `${model.name}.${field.name}`;
+      if (explicitList.has(key)) {
+        // Trust caller-provided isList (needed for reverse 1:1 vs 1:N)
+        continue;
+      }
+
       const localFk = `${field.name}Id`;
       if (scalarNames.has(localFk)) {
         field.isList = false;
         field.relationFromFields = [localFk];
-        field.relationToFields = ['id'];
+        if (!field.relationToFields?.length) {
+          field.relationToFields = ['id'];
+        }
       } else {
+        // Default to-many when runtime omits isList / from-fields.
+        // Reverse 1:1 requires explicit isList: false or full DMMF/schema meta.
         field.isList = true;
       }
     }
@@ -312,11 +401,11 @@ export function buildPrismaMetaFromRuntimeDataModel(
   return buildPrismaMetaFromDmmf({ models: dmmfModels });
 }
 
-function findOppositeLocalFk(
+function findOppositeLocalFkFields(
   target: DmmfModelLike,
   sourceModelName: string,
   relationName?: string | null,
-): string | undefined {
+): string[] | undefined {
   for (const field of target.fields) {
     if (field.kind !== 'object') continue;
     if (field.type !== sourceModelName) continue;
@@ -324,16 +413,16 @@ function findOppositeLocalFk(
       continue;
     }
     const from = field.relationFromFields ?? [];
-    if (from.length > 0) return from[0];
+    if (from.length > 0) return [...from];
   }
   return undefined;
 }
 
-function findOppositeLocalFkFromSchema(
+function findOppositeLocalFkFieldsFromSchema(
   target: SchemaModel,
   sourceModelName: string,
   relationName?: string,
-): string | undefined {
+): string[] | undefined {
   for (const field of target.fields) {
     if (field.kind !== 'relation') continue;
     if (field.typeName !== sourceModelName) continue;
@@ -341,7 +430,7 @@ function findOppositeLocalFkFromSchema(
       continue;
     }
     const from = field.relationFromFields ?? [];
-    if (from.length > 0) return from[0];
+    if (from.length > 0) return [...from];
   }
   return undefined;
 }

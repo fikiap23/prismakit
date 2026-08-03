@@ -69,6 +69,7 @@ export {
   buildEntityKey,
   buildQueryKey,
   entityIndexKey,
+  entityAllIndexKey,
   queryIndexKey,
 } from './cache/cache-key.util';
 export { selectIncludesSensitiveField } from './cache/cache-guard.util';
@@ -89,6 +90,7 @@ export {
   getComposeOptions,
   mergeComposeOptions,
   type ComposeOptions,
+  type ResolvedComposeOptions,
 } from './compose/compose-options';
 export {
   RepositoryRegistry,

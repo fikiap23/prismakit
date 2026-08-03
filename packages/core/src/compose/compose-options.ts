@@ -12,32 +12,47 @@ export type ComposeOptions = {
   parallel?: boolean;
   /**
    * Whether nested relation fetches should pass `setCache: true` (default true).
+   * Parent reads with `setCache: false` / active `tx` should override this.
    */
   setCache?: boolean;
+  /**
+   * Transaction client forwarded to nested `getMany` calls so compose sees
+   * uncommitted rows and bypasses cache inside transactions.
+   */
+  tx?: unknown;
 };
 
-const DEFAULTS: Required<ComposeOptions> = {
+export type ResolvedComposeOptions = {
+  maxDepth: number;
+  parallel: boolean;
+  setCache: boolean;
+  tx?: unknown;
+};
+
+const DEFAULTS: ResolvedComposeOptions = {
   maxDepth: 10,
   parallel: true,
   setCache: true,
+  tx: undefined,
 };
 
-let globalComposeOptions: Required<ComposeOptions> = { ...DEFAULTS };
+let globalComposeOptions: ResolvedComposeOptions = { ...DEFAULTS };
 
 export function setComposeOptions(options: ComposeOptions | undefined): void {
   globalComposeOptions = {
     ...DEFAULTS,
     ...options,
+    tx: undefined, // tx is always per-call
   };
 }
 
-export function getComposeOptions(): Required<ComposeOptions> {
+export function getComposeOptions(): ResolvedComposeOptions {
   return globalComposeOptions;
 }
 
 export function mergeComposeOptions(
   overrides?: ComposeOptions,
-): Required<ComposeOptions> {
-  if (!overrides) return globalComposeOptions;
+): ResolvedComposeOptions {
+  if (!overrides) return { ...globalComposeOptions };
   return { ...globalComposeOptions, ...overrides };
 }

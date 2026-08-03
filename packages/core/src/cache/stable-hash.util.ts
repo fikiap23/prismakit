@@ -11,6 +11,7 @@ const hashCache = new WeakMap<object, string>();
 
 function sortDeep(value: unknown): unknown {
   if (value === null || value === undefined) return value;
+  if (typeof value === 'bigint') return { __bigint: value.toString() };
   if (Array.isArray(value)) return value.map(sortDeep);
   if (typeof value === 'object' && value instanceof Date) {
     return value.toISOString();

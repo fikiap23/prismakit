@@ -1,0 +1,101 @@
+// Messy-on-purpose schema to stress PrismaKit auto-compose + cache.
+// PK names, FK names, and @@map / @map are intentionally inconsistent.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uid          String    @id @map("user_id")
+  name         String    @map("full_name")
+  profile      Profile?
+  posts        Post[]    @relation("PostWriter")
+  editedPosts  Post[]    @relation("PostEditor")
+  comments     Comment[]
+
+  @@map("m_user")
+}
+
+model Profile {
+  id       String @id
+  bio      String
+  ownerUid String @unique @map("owner_uid")
+  owner    User   @relation(fields: [ownerUid], references: [uid])
+
+  @@map("m_profile")
+}
+
+model Category {
+  code  String @id @map("kat_code")
+  label String
+  posts Post[]
+
+  @@map("kategori")
+}
+
+model Post {
+  postId       String    @id @map("post_id")
+  title        String
+  writerRef    String    @map("writer_ref")
+  editorRef    String    @map("editor_ref")
+  categoryCode String    @map("category_code")
+  writer       User      @relation("PostWriter", fields: [writerRef], references: [uid])
+  editor       User      @relation("PostEditor", fields: [editorRef], references: [uid])
+  category     Category  @relation(fields: [categoryCode], references: [code])
+  postTags     PostTag[]
+
+  @@map("tbl_posts")
+}
+
+model Tag {
+  id       String    @id
+  name     String
+  postTags PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  postId String @map("post_id")
+  tagId  String @map("tag_id")
+  post   Post   @relation(fields: [postId], references: [postId])
+  tag    Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Warehouse {
+  id     String  @id
+  code   String  @unique
+  name   String
+  stocks Stock[]
+
+  @@map("wh")
+}
+
+model Stock {
+  id            String    @id
+  qty           Int
+  warehouseCode String    @map("warehouse_code")
+  warehouse     Warehouse @relation(fields: [warehouseCode], references: [code])
+
+  @@map("stocks")
+}
+
+model Comment {
+  id        String    @id
+  body      String
+  authorUid String    @map("author_uid")
+  parentId  String?   @map("parent_id")
+  author    User      @relation(fields: [authorUid], references: [uid])
+  parent    Comment?  @relation("CommentTree", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentTree")
+
+  @@map("comments")
+}

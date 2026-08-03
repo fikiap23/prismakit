@@ -79,6 +79,25 @@ type QueryRawClient = {
   $queryRawUnsafe: <T>(query: string, ...values: unknown[]) => Promise<T>;
 };
 
+function orderByToSql(
+  orderBy: unknown,
+  columnMap: Record<string, string>,
+): string | undefined {
+  if (!orderBy) return undefined;
+  const clauses = Array.isArray(orderBy) ? orderBy : [orderBy];
+  const parts: string[] = [];
+  for (const clause of clauses) {
+    if (!clause || typeof clause !== 'object') continue;
+    for (const [field, dir] of Object.entries(clause as Record<string, unknown>)) {
+      const col = quoteIdentifier(columnMap[field] ?? field);
+      const direction =
+        String(dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+      parts.push(`${col} ${direction}`);
+    }
+  }
+  return parts.length ? parts.join(', ') : undefined;
+}
+
 /**
  * SELECT … FOR UPDATE via parameterized `$queryRawUnsafe`.
  * Identifiers are validated/quoted; only `id` is bound as a parameter.
@@ -98,10 +117,19 @@ export async function queryRowForUpdate(
     idColumn?: string | string[];
   },
 ): Promise<Record<string, unknown> | null> {
-  const rows = await queryRowsForUpdate(tx, config, {
-    where: typeof id === 'string'
+  if (Array.isArray(idColumn) && typeof id === 'string') {
+    throw new Error(
+      `Row lock: composite primaryKey [${idColumn.join(', ')}] requires id as object`,
+    );
+  }
+
+  const where =
+    typeof id === 'string'
       ? { [Array.isArray(idColumn) ? idColumn[0] : idColumn]: id }
-      : id,
+      : id;
+
+  const rows = await queryRowsForUpdate(tx, config, {
+    where,
     select,
     lock,
     take: 1,
@@ -123,11 +151,13 @@ export async function queryRowsForUpdate(
     select,
     lock,
     take,
+    orderBy,
   }: {
     where: Record<string, unknown>;
     select?: object;
     lock: RowLockOptions;
     take?: number;
+    orderBy?: unknown;
   },
 ): Promise<Record<string, unknown>[]> {
   const columnMap = config.columns ?? {};
@@ -151,6 +181,10 @@ export async function queryRowsForUpdate(
       // Skip complex Prisma filters — caller should use simple equality
       const obj = value as Record<string, unknown>;
       if ('in' in obj && Array.isArray(obj.in)) {
+        if (obj.in.length === 0) {
+          // Empty IN () is invalid SQL — short-circuit
+          return [];
+        }
         const placeholders = obj.in.map(() => `$${paramIndex++}`);
         const col = quoteIdentifier(columnMap[field] ?? field);
         conditions.push(`${col} IN (${placeholders.join(', ')})`);
@@ -180,7 +214,15 @@ export async function queryRowsForUpdate(
     throw new Error('Row lock WHERE must include at least one equality filter');
   }
 
-  let sql = `SELECT ${selectClause} FROM ${table} WHERE ${conditions.join(' AND ')} ${lockClause}`;
+  let sql = `SELECT ${selectClause} FROM ${table} WHERE ${conditions.join(' AND ')}`;
+
+  const orderSql = orderByToSql(orderBy, columnMap);
+  if (orderSql) {
+    sql += ` ORDER BY ${orderSql}`;
+  }
+
+  sql += ` ${lockClause}`;
+
   if (typeof take === 'number' && take > 0) {
     sql += ` LIMIT $${paramIndex++}`;
     values.push(take);
