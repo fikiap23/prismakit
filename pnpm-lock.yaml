@@ -232,8 +232,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@prismakit/redis':
-        specifier: '>=2.2.2'
-        version: 2.2.2(@prismakit/core@packages+core)(ioredis@5.11.1)
+        specifier: '>=2.2.3'
+        version: 2.2.3(@prismakit/core@packages+core)(ioredis@5.11.1)
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
@@ -1105,11 +1105,11 @@ packages:
   '@prisma/get-platform@6.19.3':
     resolution: {integrity: sha512-xFj1VcJ1N3MKooOQAGO0W5tsd0W2QzIvW7DD7c/8H14Zmp4jseeWAITm+w2LLoLrlhoHdPPh0NMZ8mfL6puoHA==}
 
-  '@prismakit/redis@2.2.2':
-    resolution: {integrity: sha512-SwHOHn0NZcP/uxmJMymTOHoRsi2+FZcjmpdS88osSSU1gRIRbwq3/c8jsYvqRhYkIoRJW9K3BtpfFgqMXOgdow==}
+  '@prismakit/redis@2.2.3':
+    resolution: {integrity: sha512-ROtn/YKa91icEBG3lh0aB23LhDOdGjx/SNFhJcc+1UkCSz0ZnyuH1tGWMa/bOA5GmYIkv/JiA5vByMyH3htXWg==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@prismakit/core': '>=2.2.2'
+      '@prismakit/core': '>=2.2.3'
       ioredis: '>=5.0.0'
 
   '@rollup/rollup-android-arm-eabi@4.62.3':
@@ -3894,7 +3894,7 @@ snapshots:
     dependencies:
       '@prisma/debug': 6.19.3
 
-  '@prismakit/redis@2.2.2(@prismakit/core@packages+core)(ioredis@5.11.1)':
+  '@prismakit/redis@2.2.3(@prismakit/core@packages+core)(ioredis@5.11.1)':
     dependencies:
       '@prismakit/core': link:packages/core
       ioredis: 5.11.1
