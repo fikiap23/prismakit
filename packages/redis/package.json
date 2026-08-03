@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/redis",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Redis CacheAdapter for @prismakit/core",
   "license": "Apache-2.0",
   "engines": {
@@ -34,7 +34,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=2.2.2",
+    "@prismakit/core": ">=2.2.3",
     "ioredis": ">=5.0.0"
   },
   "devDependencies": {

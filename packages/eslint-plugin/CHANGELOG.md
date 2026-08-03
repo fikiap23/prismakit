@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 2.2.3
+
+### Patch Changes
+
+- c39c694: Harden auto-compose, cache invalidation, and row locks for messy schemas; add unit coverage and a real Prisma SQLite smoke example.
+
 ## 2.1.1
 
 ### Patch Changes
