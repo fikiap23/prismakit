@@ -56,14 +56,15 @@ export type PrismaMetaRegistry = Readonly<Record<string, ModelMeta>>;
 
 /** Minimal DMMF datamodel shape (Prisma 5+/6+/7). */
 export type DmmfDatamodelLike = {
-  models: DmmfModelLike[];
+  /** `readonly` so Prisma `BaseDMMF` / `ReadonlyDeep` assigns cleanly. */
+  models: readonly DmmfModelLike[];
 };
 
 export type DmmfModelLike = {
   name: string;
   dbName?: string | null;
-  primaryKey?: { name: string | null; fields: string[] } | null;
-  fields: DmmfFieldLike[];
+  primaryKey?: { name: string | null; fields: readonly string[] } | null;
+  fields: readonly DmmfFieldLike[];
 };
 
 export type DmmfFieldLike = {
