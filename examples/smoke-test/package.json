@@ -6,13 +6,13 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push --skip-generate",
+    "prisma:generate": "DATABASE_URL=\"file:./dev.db\" prisma generate",
+    "prisma:push": "DATABASE_URL=\"file:./dev.db\" prisma db push --skip-generate",
     "db:reset-file": "rm -f prisma/dev.db prisma/dev.db-journal",
     "db:ready": "pnpm prisma:generate && pnpm db:reset-file && pnpm prisma:push",
     "smoke": "tsx src/smoke.ts",
     "test": "pnpm db:ready && pnpm smoke",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@prismakit/core": "workspace:*",

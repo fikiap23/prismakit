@@ -200,10 +200,6 @@ async function main() {
             },
             setCache: false,
           });
-          const userKeys = cache
-            .keys?.() // MemoryCacheAdapter may not expose keys
-            ? []
-            : [];
           // Probe via second call + update: relation must re-read DB
           await prisma.user.update({
             where: { uid: 'u1' },
@@ -223,7 +219,6 @@ async function main() {
             where: { uid: 'u1' },
             data: { name: 'Ada' },
           });
-          void userKeys;
         },
       },
       {
