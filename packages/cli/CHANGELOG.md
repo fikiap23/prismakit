@@ -1,5 +1,17 @@
 # @prismakit/cli
 
+## 3.0.0
+
+### Major Changes
+
+- febf47f: Remove relation-alias APIs and `prismakit codegen`. Relation fields resolve from schema/DMMF meta only. Complete `RepositoryApiFromTypeMap` with bulk ops, lock-on-getFirst, and composite PKs. `schemaPath` defaults to `prisma/schema.prisma`; `prismakit validate` loads meta itself (`--schema`, `--auto-register`).
+
+### Patch Changes
+
+- 11e74e5: Add `prismakit skills` to install Cursor agent skills (`prismakit`, `prismakit-nestjs`) into `.cursor/skills` or `~/.cursor/skills`, with optional `--with-rules`.
+- Updated dependencies [febf47f]
+  - @prismakit/core@3.0.0
+
 ## 2.2.3
 
 ### Patch Changes

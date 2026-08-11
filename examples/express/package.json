@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/example-express",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Minimal Express + PrismaKit example (no Docker / DB required)",
   "license": "Apache-2.0",
   "type": "module",

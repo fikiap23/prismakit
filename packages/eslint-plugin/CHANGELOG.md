@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 3.0.0
+
+### Major Changes
+
+- Released in lockstep with `@prismakit/core@3.0.0` (schema-meta relation resolution; TypeMap bulk ops).
+
 ## 2.2.3
 
 ### Patch Changes

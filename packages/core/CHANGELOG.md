@@ -1,5 +1,11 @@
 # @prismakit/core
 
+## 3.0.0
+
+### Major Changes
+
+- febf47f: Remove relation-alias APIs and `prismakit codegen`. Relation fields resolve from schema/DMMF meta only. Complete `RepositoryApiFromTypeMap` with bulk ops, lock-on-getFirst, and composite PKs. `schemaPath` defaults to `prisma/schema.prisma`; `prismakit validate` loads meta itself (`--schema`, `--auto-register`).
+
 ## 2.2.3
 
 ### Patch Changes
