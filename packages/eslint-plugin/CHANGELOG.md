@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 3.0.6
+
+### Patch Changes
+
+- Add `prismakit/require-cached-repo-provider`: repository classes with `cache` must appear in a Nest module `providers` array, so `autoRegisterModels` cannot silently replace them with an uncached stub.
+
 ## 3.0.0
 
 ### Major Changes

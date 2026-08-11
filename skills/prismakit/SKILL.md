@@ -226,7 +226,7 @@ import prismakit from '@prismakit/eslint-plugin';
 export default [prismakit.configs.recommended];
 ```
 
-Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules: `no-prisma-service-outside-repos`, `no-direct-prisma-delegate`, `require-transaction-service`.
+Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules: `no-prisma-service-outside-repos`, `no-direct-prisma-delegate`, `require-transaction-service`, `require-cached-repo-provider`.
 
 ## Clean code
 

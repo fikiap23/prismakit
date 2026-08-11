@@ -63,6 +63,7 @@ Task Progress:
 
 - [ ] Relations are nested objects in `select`, not Prisma `include`
 - [ ] Related model repositories are registered (or `autoRegisterModels` covers them)
+- [ ] Cached repos (`cache` in `defineAppRepo`) are listed in a Nest module `providers` array
 - [ ] `npx prismakit validate` (or `validateCompose: true`) is clean when selects nest relations
 
 ## ESLint / layout

@@ -19,6 +19,7 @@ import {
   loadPrismaMetaFromSchema,
   pascalToRepoKey,
   getSchemaModels,
+  resolveSchemaPath,
   setComposeOptions,
   setRegisteredCacheModels,
   setTelemetry,
@@ -170,9 +171,9 @@ function autoRegisterStubRepos(
     models = [...options.autoRegisterModels];
   } else {
     try {
-      models = getSchemaModels(resolvedSchemaPath(options)).map((m) =>
-        pascalToRepoKey(m.name),
-      );
+      models = getSchemaModels(
+        resolveSchemaPath(resolvedSchemaPath(options)),
+      ).map((m) => pascalToRepoKey(m.name));
     } catch {
       console.warn(
         '[PrismaKit] autoRegisterModels: true requires schemaPath or an explicit model list',
@@ -202,9 +203,13 @@ export class PrismaKitModule implements OnModuleInit {
     @Optional()
     @Inject(PRISMAKIT_OPTIONS)
     private readonly options?: PrismaKitModuleOptions,
+    // Explicit @Inject required: tsup/esbuild does not emit design:paramtypes,
+    // so Nest cannot resolve class tokens from TypeScript types alone.
     @Optional()
+    @Inject(RepositoryRegistry)
     private readonly registry?: RepositoryRegistry,
     @Optional()
+    @Inject(ModulesContainer)
     private readonly modulesContainer?: ModulesContainer,
   ) {}
 

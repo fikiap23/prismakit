@@ -80,6 +80,26 @@ await this.tx.execTx(async (tx) => { /* ... */ });
 
 Use `TransactionService` from `@prismakit/nestjs`.
 
+### `prismakit/require-cached-repo-provider`
+
+A repository with `cache` must appear in some Nest module `providers: [...]`. Otherwise Nest never constructs it and `autoRegisterModels` installs an **uncached** stub — the `cache` block is a no-op.
+
+Compose-only stubs (no `cache`) are allowed to stay out of `providers`.
+
+```typescript
+// BAD — cache config, but not in UserModule.providers
+export class ProfileRepository extends defineAppRepo({
+  model: 'profile',
+  cache: { ttl: 86_400 },
+}) {}
+
+// GOOD
+@Module({
+  providers: [UserService, UserRepository, ProfileRepository],
+})
+export class UserModule {}
+```
+
 ## Cursor rule and skills (optional)
 
 ```bash

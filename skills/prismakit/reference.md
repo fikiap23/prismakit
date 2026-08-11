@@ -265,6 +265,7 @@ export default [prismakit.configs.recommended];
 | `prismakit/no-prisma-service-outside-repos` | Inject/reference `PrismaService` / `PrismaClient` outside allowlist |
 | `prismakit/no-direct-prisma-delegate` | `prisma.<model>.*` outside allowlist |
 | `prismakit/require-transaction-service` | `.$transaction` in feature code |
+| `prismakit/require-cached-repo-provider` | Cached repo class missing from Nest `providers` |
 
 Allowed path patterns (forward slashes):
 

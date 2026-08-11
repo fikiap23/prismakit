@@ -28,6 +28,7 @@ export default [
 | `prismakit/no-prisma-service-outside-repos` | No `PrismaClient` / `PrismaService` outside `**/repositories/**` |
 | `prismakit/no-direct-prisma-delegate` | No `prisma.<model>.*` outside repositories |
 | `prismakit/require-transaction-service` | No raw `.$transaction` in feature code — use `TransactionService` |
+| `prismakit/require-cached-repo-provider` | Cached `defineAppRepo({ cache })` classes must be in a Nest `providers` array |
 
 ```typescript
 // BAD

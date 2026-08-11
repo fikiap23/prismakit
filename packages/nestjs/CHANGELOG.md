@@ -1,5 +1,11 @@
 # @prismakit/nestjs
 
+## 3.0.5
+
+### Patch Changes
+
+- Fix `autoRegisterModels` no-op in compiled Nest builds. `PrismaKitModule` now `@Inject`s `RepositoryRegistry` and `ModulesContainer` so tsup/esbuild emits Nest tokens (same pattern as injectable repositories). Compose-only models such as `profile` are registered at boot.
+
 ## 3.0.4
 
 ### Patch Changes
