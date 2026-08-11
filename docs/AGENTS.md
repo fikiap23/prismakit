@@ -92,4 +92,7 @@ npx prismakit validate
 2. ESLint: `@prismakit/eslint-plugin`
 3. Runtime: lock/cache validation at repository init
 
-Cursor template: `templates/cursor-rules/data-access.mdc`.
+Cursor:
+
+- Agent skills: `templates/cursor-skills/` (`prismakit` + `prismakit-nestjs`). Install with `bash templates/cursor-skills/scripts/install.sh`.
+- Always-on rule: `templates/cursor-rules/data-access.mdc`.

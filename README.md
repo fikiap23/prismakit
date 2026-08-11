@@ -78,6 +78,7 @@ Full walkthrough: [Getting started](docs/getting-started.md).
 | CLI | [docs/reference/cli.md](docs/reference/cli.md) |
 | ESLint | [docs/reference/eslint.md](docs/reference/eslint.md) |
 | Rules (required) | [docs/RULES.md](docs/RULES.md) |
+| Cursor skills | [templates/cursor-skills/](templates/cursor-skills/) |
 
 **Forbidden:** inject `PrismaClient` / call `prisma.model.*` outside `repositories/`.
 

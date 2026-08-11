@@ -80,9 +80,15 @@ await this.tx.execTx(async (tx) => { /* ... */ });
 
 Use `TransactionService` from `@prismakit/nestjs`.
 
-## Cursor rule (optional)
+## Cursor rule and skills (optional)
 
 Copy [`templates/cursor-rules/data-access.mdc`](../../templates/cursor-rules/data-access.mdc) into your app’s `.cursor/rules/` so agents follow the same contract.
+
+For full agent workflows (factories, cache, compose, Nest `execTx`), install the Cursor skills from [`templates/cursor-skills/`](../../templates/cursor-skills/):
+
+```bash
+bash templates/cursor-skills/scripts/install.sh
+```
 
 ## See also
 
