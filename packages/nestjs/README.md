@@ -25,7 +25,6 @@ import { Prisma } from '@prisma/client';
     PrismaKitModule.forRoot({
       prisma: prismaClient,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-      cacheModels: ['user'], // optional strict allowlist
     }),
   ],
 })
@@ -49,7 +48,7 @@ Register `UserRepository` in a feature module `providers`.
 |--------|-------------|
 | `prisma` | Your Prisma client instance |
 | `cache` | Optional `CacheAdapter` |
-| `cacheModels` | Optional allowlist for cached models |
+| `cacheModels` | Optional extra allowlist (omit — repo `cache` is enough) |
 | `validateCompose` | Run compose validation on boot |
 | `schemaPath` | Path to `schema.prisma` for lock helpers |
 

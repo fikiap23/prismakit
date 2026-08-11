@@ -31,7 +31,7 @@ export {
   defineRepo,
   defineRepository,
 } from './define-repository';
-export { createDefineRepo } from './create-define-repo';
+export { createDefineRepo, type InjectableRepo } from './create-define-repo';
 export {
   PRISMAKIT_PRISMA,
   PRISMAKIT_CACHE,

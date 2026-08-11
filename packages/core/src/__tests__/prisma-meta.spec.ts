@@ -425,4 +425,35 @@ model Post {
     expect(post.primaryKey).toBe('id');
     fs.rmSync(dir, { recursive: true, force: true });
   });
+
+  it('parsePrismaSchema reads composite @@id', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pk-schema-'));
+    const schemaPath = path.join(dir, 'schema.prisma');
+    fs.writeFileSync(
+      schemaPath,
+      `
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id])
+  tag       Tag     @relation(fields: [tagId], references: [id])
+  @@id([productId, tagId])
+}
+
+model Product {
+  id   String       @id
+  tags ProductTag[]
+}
+
+model Tag {
+  id       String       @id
+  products ProductTag[]
+}
+`,
+    );
+    const models = parsePrismaSchema(schemaPath);
+    const productTag = models.find((m) => m.name === 'ProductTag')!;
+    expect(productTag.primaryKey).toEqual(['productId', 'tagId']);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

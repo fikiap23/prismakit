@@ -72,10 +72,10 @@ export const UserRepository = defineAppRepo({
   model: 'user',
   cache: { ttl: 86_400 },
 });
-export type UserRepository = InstanceType<typeof UserRepository>;
+export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
 
-Do not restate model name and cache flag as a second generic — they cannot drift from the factory options.
+Use `interface … extends InstanceType<typeof Repo>` so cache fields follow the `cache` option. A same-name `type Repo = InstanceType<typeof Repo>` alias collapses to `any` in the IDE. Do not restate `AppRepo<'User', true>`.
 
 ## Peer ranges
 

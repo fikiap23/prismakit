@@ -13,6 +13,7 @@ import {
   validateCacheConfig,
 } from '../cache/validate-cache-config';
 import { createRepository } from '../create-repository';
+import { clearPrismaMeta } from '../schema/prisma-meta';
 
 describe('splitSelect', () => {
   it('splits scalars and relations and keeps FK', () => {
@@ -174,6 +175,44 @@ model User {
       }),
     ).not.toThrow();
 
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('resolves composite @@id from schema without primaryKey option', async () => {
+    clearPrismaMeta();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prismakit-'));
+    const schemaPath = path.join(dir, 'schema.prisma');
+    fs.writeFileSync(
+      schemaPath,
+      `
+model ProductTag {
+  productId String
+  tagId     String
+  @@id([productId, tagId])
+}
+`,
+      'utf-8',
+    );
+    let where: Record<string, unknown> | undefined;
+    const findUnique = async (args: { where: Record<string, unknown> }) => {
+      where = args.where;
+      return { productId: 'p1', tagId: 't1' };
+    };
+
+    const Repo = createRepository({
+      model: 'productTag',
+      schemaPath,
+    });
+    const repo = new Repo({
+      prisma: { productTag: { findUnique } },
+    });
+    await repo.getById({
+      id: { productId: 'p1', tagId: 't1' },
+      select: { productId: true, tagId: true },
+    });
+    expect(where).toEqual({ productId: 'p1', tagId: 't1' });
+
+    clearPrismaMeta();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

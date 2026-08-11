@@ -8,6 +8,7 @@ import {
   Provider,
   Type,
 } from '@nestjs/common';
+import { ModulesContainer } from '@nestjs/core';
 import {
   assertSelectComposeValid,
   AutoComposer,
@@ -35,6 +36,7 @@ import {
   PRISMAKIT_OPTIONS,
   PRISMAKIT_PRISMA,
 } from './tokens';
+import { inheritRepoInjection } from './inherit-repo-inject';
 import { TransactionService } from './transaction.service';
 
 export type QueryLogOptions = {
@@ -67,8 +69,8 @@ export type PrismaKitModuleOptions = {
   /** When true, run assertSelectComposeValid on module init. */
   validateCompose?: boolean;
   /**
-   * Strict cache-model allowlist. When set, repository `cache` config is only
-   * allowed for these model keys. Omit for fail-open (no allowlist check).
+   * Optional extra allowlist. Repository `cache` config is the source of truth —
+   * omit this (fail-open). When set, `cache` is only allowed for these model keys.
    */
   cacheModels?: readonly string[];
   /** Global auto-compose options (maxDepth, parallel, setCache). */
@@ -202,9 +204,14 @@ export class PrismaKitModule implements OnModuleInit {
     private readonly options?: PrismaKitModuleOptions,
     @Optional()
     private readonly registry?: RepositoryRegistry,
+    @Optional()
+    private readonly modulesContainer?: ModulesContainer,
   ) {}
 
   onModuleInit(): void {
+    if (this.modulesContainer) {
+      inheritRepoInjection(this.modulesContainer);
+    }
     if (this.options) {
       applyModuleOptions(this.options);
       if (this.registry && this.options.prisma) {

@@ -70,7 +70,7 @@ type DefineRepoOptions<
  *   },
  * });
  *
- * export type AuditLogRepository = InstanceType<typeof AuditLogRepository>;
+ * export interface AuditLogRepository extends InstanceType<typeof AuditLogRepository> {}
  */
 export function defineInjectableRepository<
   TSelect extends object,

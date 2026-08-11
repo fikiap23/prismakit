@@ -11,7 +11,7 @@ API surface for `@prismakit/nestjs` 3.x. Repository methods, cache, compose, and
 | `dmmf` | no | `Prisma.dmmf` on Prisma 5/6. Skip on Prisma 7 — use `schemaPath`. |
 | `schemaPath` | no | Load meta from `schema.prisma` when `dmmf` is omitted (compose + locks). Defaults to `prisma/schema.prisma`. |
 | `validateCompose` | no | When `true`, `assertSelectComposeValid` on module init. |
-| `cacheModels` | no | Strict allowlist of model keys with `cache` config. Omit = fail-open. |
+| `cacheModels` | no | Optional extra allowlist. Omit — repo `cache` is the source of truth. |
 | `compose` | no | `ComposeOptions`: `maxDepth` (default 10), `parallel` (default true), `setCache` (default true). `tx` is per-call only. |
 | `telemetry` | no | `{ enabled?: boolean; onEvent?: (event) => void }`. |
 | `queryLog` | no | `{ slowThreshold?: number; onSlowQuery?: (e) => void }`. Default threshold 500ms. Setting this enables telemetry. |
@@ -39,7 +39,6 @@ PrismaKitModule.forRootAsync({
       url: config.get('REDIS_URL'),
       prefix: config.get('CACHE_PREFIX') ?? 'myapp',
     }),
-    cacheModels: ['user', 'product'],
     schemaPath: 'prisma/schema.prisma',
   }),
 });
@@ -87,12 +86,12 @@ await this.tx.execTx<User, Prisma.TransactionClient>(async (tx) => { /* ... */ }
 
 When `cache` is set, the returned API includes `setCache` / `cacheTags` / `invalidate` / `tags` / `invalidateCache`. Otherwise those fields are omitted from the type (`HasCacheFromOptions`).
 
-`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `createMany`, `updateMany`, `upsert`, `deleteMany`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. Derive the instance type from the constructor — do not restate model/cache as a second generic:
+`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `createMany`, `updateMany`, `upsert`, `deleteMany`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. `primaryKey` is optional — composite `@@id` is read from schema meta.
 
-Export the instance type:
+Export the instance type with interface merging so `cache` on options gates `setCache` (a same-name `type` alias collapses to `any`):
 
 ```typescript
-export type UserRepository = InstanceType<typeof UserRepository>;
+export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
 
 ## `defineInjectableRepository` shape (escape hatch)

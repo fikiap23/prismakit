@@ -14,7 +14,6 @@ import { RedisCacheAdapter } from '@prismakit/redis';
     PrismaKitModule.forRoot({
       prisma: prismaClient,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-      cacheModels: ['user', 'product'],
     }),
   ],
 })
@@ -27,7 +26,7 @@ export class AppModule {}
 |--------|----------|-------------|
 | `prisma` | yes | Your `PrismaClient` (or compatible) instance |
 | `cache` | no | `CacheAdapter` (e.g. `RedisCacheAdapter`) |
-| `cacheModels` | no | Strict allowlist of model keys with `cache` config. Omit = fail-open |
+| `cacheModels` | no | Optional extra allowlist. Omit — repo `cache` is the source of truth |
 | `schemaPath` | no | Path to `prisma/schema.prisma` for lock helpers |
 | `validateCompose` | no | When `true`, run compose validation on module init |
 
@@ -43,7 +42,6 @@ PrismaKitModule.forRootAsync({
       url: config.get('REDIS_URL'),
       prefix: config.get('CACHE_PREFIX') ?? 'myapp',
     }),
-    cacheModels: ['user'],
   }),
 });
 ```

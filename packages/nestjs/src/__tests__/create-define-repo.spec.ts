@@ -43,16 +43,38 @@ type FakeTypeMap = {
         };
       };
     };
+    AuditLog: {
+      payload: {
+        name: 'AuditLog';
+        scalars: { id: string };
+        objects: {};
+        composites: {};
+      };
+      fields: {};
+      operations: {
+        findMany: {
+          args: { select?: { id?: true } };
+          result: unknown;
+        };
+        create: { args: { data: { id: string } }; result: unknown };
+        update: { args: { data: { id?: string } }; result: unknown };
+        findUnique: { args: { where: { id?: string } }; result: unknown };
+      };
+    };
   };
 };
 
 const defineRepo = createDefineRepo<FakeTypeMap>();
 
-const CartItemRepository = defineRepo({
+class CartItemRepository extends defineRepo({
   model: 'cartItem',
   cache: { ttl: 300 },
-});
-type CartItemRepository = InstanceType<typeof CartItemRepository>;
+  primaryKey: ['userId', 'productId'],
+}) {}
+
+class AuditLogRepository extends defineRepo({
+  model: 'auditLog',
+}) {}
 
 function loadCart(repo: CartItemRepository) {
   return repo.getMany({
@@ -61,15 +83,21 @@ function loadCart(repo: CartItemRepository) {
       qty: true,
       product: { select: { id: true, sku: true, priceCents: true } },
     },
+    setCache: true,
   });
 }
 
-describe('createDefineRepo InstanceType', () => {
+describe('createDefineRepo class extends', () => {
   it('preserves the model so nested select fields are not never', () => {
     type Item = Awaited<ReturnType<typeof loadCart>>[number];
     expectTypeOf<Item['userId']>().toEqualTypeOf<string>();
     expectTypeOf<Item['product']['sku']>().toEqualTypeOf<string>();
     expectTypeOf<Item['product']['priceCents']>().toEqualTypeOf<number>();
     expectTypeOf<CartItemRepository['createMany']>().toBeFunction();
+    expectTypeOf<CartItemRepository['invalidateCache']>().toBeFunction();
+  });
+
+  it('omits cache fields when options have no cache', () => {
+    expectTypeOf<AuditLogRepository>().not.toHaveProperty('invalidateCache');
   });
 });

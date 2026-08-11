@@ -1,5 +1,12 @@
 # @prismakit/redis
 
+## 3.0.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @prismakit/core@3.0.2
+
 ## 3.0.0
 
 ### Major Changes

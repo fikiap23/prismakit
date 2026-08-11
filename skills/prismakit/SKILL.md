@@ -86,7 +86,7 @@ export const users = new UserRepoClass({ prisma, cache });
 | `scalarFields` | Usually `Prisma.XScalarFieldEnum`. Enables select-split + compose. Optional if DMMF/schema meta is loaded. |
 | `cache` | `CacheOptions` or `true` → `{ ttl: 86400, sensitiveFields: ['password'] }`. |
 | `lock` | `true` / client key / `@@map` table / `{ tableName, columns }`. |
-| `primaryKey` | `string` or `string[]` (composite). Defaults to meta PK or `id`. |
+| `primaryKey` | Override only. Defaults to schema `@id` / `@@id` (composite `string[]`) or `id`. |
 | `schemaPath` | Path to `schema.prisma` when meta is not loaded globally. |
 | `getDelegate` | Optional. Defaults to `(c) => c[model]`. |
 
@@ -153,7 +153,7 @@ If Redis is down, `RedisCacheAdapter` **fails open** — queries still hit Prism
 | Auth, uniqueness, JWT lookup | omit / `false` |
 | Inside `tx` | ignored |
 
-Empty `cacheModels` allowlist is **fail-open**. In production, register allowed model keys; a cached repo whose model is missing from the list throws at init.
+Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). An optional allowlist throws if a cached repo's model is missing from the list.
 
 `setCache` / `cacheTags` / `invalidate` / `invalidateCache` exist on the type **only** when the repo has `cache` config. Do not force them on uncached repos.
 

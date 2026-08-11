@@ -120,9 +120,9 @@ await repo.invalidateCache({ tags: [`category:${categoryId}`] });
 
 ## Allowlist (`cacheModels`)
 
-By default (empty allowlist) cache config is **fail-open**.
+The repository `cache` block is the source of truth. Omit `cacheModels` (fail-open) — a model caches if and only if its repository sets `cache`.
 
-For production, register allowed models once:
+`cacheModels` is an optional extra allowlist for teams that want a second check:
 
 ```typescript
 PrismaKitModule.forRoot({
@@ -132,7 +132,7 @@ PrismaKitModule.forRoot({
 });
 ```
 
-If a repository enables `cache` for a model not in the list, repository init throws.
+If set, a repository that enables `cache` for a model not in the list throws at init.
 
 ## TypeScript DX
 

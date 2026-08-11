@@ -27,7 +27,6 @@ import { UserModule } from './modules/users/user.module';
           url: config.get<string>('REDIS_URL'),
           prefix: config.get<string>('CACHE_PREFIX') ?? 'myapp',
         }),
-        cacheModels: ['user', 'product', 'wallet'],
         schemaPath: 'prisma/schema.prisma',
         validateCompose: true,
         compose: { maxDepth: 6, parallel: true, setCache: true },
@@ -92,7 +91,7 @@ export const UserRepository = defineRepo({
   },
   lock: true,
 });
-export type UserRepository = InstanceType<typeof UserRepository>;
+export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
 
 ## 4. Feature module + thin controller + service

@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/memory",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "description": "In-memory CacheAdapter for @prismakit/core (tests and local dev)",
   "license": "Apache-2.0",
   "engines": {
@@ -34,7 +34,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=3.0.0"
+    "@prismakit/core": ">=3.0.2"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

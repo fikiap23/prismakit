@@ -18,8 +18,8 @@ export type SchemaField = {
 export type SchemaModel = {
   name: string;
   dbName?: string;
-  /** Single-field PK when known (`@id` or single-field `@@id`). */
-  primaryKey?: string;
+  /** `@id` field, single-field `@@id`, or composite `@@id` columns. */
+  primaryKey?: string | string[];
   fields: SchemaField[];
 };
 
@@ -88,11 +88,12 @@ export function parsePrismaSchema(schemaPath: string): SchemaModel[] {
     const tableMap = body.match(/@@map\("([^"]+)"\)/);
     const compoundId = body.match(/@@id\(\[([^\]]*)\]\)/);
     const fields: SchemaField[] = [];
-    let primaryKey: string | undefined;
+    let primaryKey: string | string[] | undefined;
 
     if (compoundId) {
       const ids = parseStringList(compoundId[1]);
       if (ids?.length === 1) primaryKey = ids[0];
+      else if (ids && ids.length > 1) primaryKey = ids;
     }
 
     for (const line of body.split('\n')) {

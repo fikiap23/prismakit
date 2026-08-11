@@ -1,5 +1,19 @@
 # @prismakit/cli
 
+## 3.0.3
+
+### Patch Changes
+
+- Define repos as `export class FooRepository extends defineRepo({ model, cache? }) {}`. Cache fields follow the `cache` option; empty subclasses inherit Nest `@Inject` metadata on module init.
+
+## 3.0.2
+
+### Patch Changes
+
+- Read composite `@@id` from schema automatically (`primaryKey` optional). Type `createDefineRepo` `primaryKey` as `string | string[]`. Infer cache API via `interface Repo extends InstanceType<typeof Repo>` so you do not pass `AppRepo<'Model', true>`.
+- Updated dependencies
+  - @prismakit/core@3.0.2
+
 ## 3.0.0
 
 ### Major Changes

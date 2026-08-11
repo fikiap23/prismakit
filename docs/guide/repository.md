@@ -30,7 +30,7 @@ export const UserRepository = defineInjectableRepository({
   lock: 'users',
 });
 
-export type UserRepository = InstanceType<typeof UserRepository>;
+export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
 
 `getById({ select: { id: true, email: true } })` then returns

@@ -27,7 +27,7 @@ Task Progress:
 - [ ] File lives under `**/repositories/**` as `*.repository.ts`
 - [ ] `model` is the Prisma client key (`'user'`, not `'User'`)
 - [ ] `scalarFields` is set **or** Prisma meta is loaded at bootstrap (`dmmf` / `schemaPath`)
-- [ ] Cached models are listed in `cacheModels` when the app uses an allowlist
+- [ ] `cacheModels` is omitted unless the app wants an extra allowlist
 
 ## Selects
 

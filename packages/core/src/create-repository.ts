@@ -47,7 +47,7 @@ import { paginator, type PaginateFunction } from './pagination/paginator';
 import { splitSelect } from './utils/split-select';
 import { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
 import { RepositoryRegistry } from './repository-registry';
-import { getModelMeta } from './schema/prisma-meta';
+import { ensurePrismaMeta, getModelMeta } from './schema/prisma-meta';
 import { emitTelemetry } from './telemetry/telemetry';
 import type { ComposeOptions } from './compose/compose-options';
 
@@ -353,6 +353,8 @@ function createRepositoryImpl<
     T,
     TToPayload
   >;
+
+  ensurePrismaMeta({ schemaPath: options.schemaPath });
 
   const cacheOpts = resolveCacheOptions(options.cache);
   const lockConfig = resolveLockConfig(

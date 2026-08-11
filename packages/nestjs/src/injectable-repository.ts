@@ -15,6 +15,7 @@ import {
   type RepoTypesDefinition,
 } from '@prismakit/core';
 
+import { markPrismakitRepo } from './inherit-repo-inject';
 import { PRISMAKIT_CACHE, PRISMAKIT_PRISMA } from './tokens';
 
 /**
@@ -108,6 +109,8 @@ export function createInjectableRepository(
       super({ prisma, cache, registry, autoCompose });
     }
   }
+
+  markPrismakitRepo(NestRepository);
 
   // Overload signatures own the public type; do not re-derive from NestRepository
   // (that erases generics and surfaces as `any` in IDEs).

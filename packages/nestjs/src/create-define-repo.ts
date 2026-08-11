@@ -11,11 +11,22 @@ import { createInjectableRepository } from './injectable-repository';
 type RuntimeRepoOptions = {
   model: string;
   scalarFields?: Record<string, string>;
-  primaryKey?: string;
+  /** Override PK. Defaults to schema/`@@id` (composite `string[]`) or `id`. */
+  primaryKey?: string | string[];
   cache?: RepositoryOptions['cache'];
   lock?: RepositoryOptions['lock'];
   schemaPath?: string;
 };
+
+/** Constructor returned by `defineRepo` / `defineAppRepo`. */
+export type InjectableRepo<I> = new (...args: never[]) => I;
+
+type RepoApi<TTypeMap extends PrismaTypeMapLike, O extends RuntimeRepoOptions> =
+  RepositoryApiFromTypeMap<
+    TTypeMap,
+    CamelToPascal<O['model']> & keyof TTypeMap['model'],
+    HasCacheFromOptions<O>
+  >;
 
 /**
  * Bind your app's `Prisma.TypeMap` once, then define repositories with only
@@ -25,35 +36,20 @@ type RuntimeRepoOptions = {
  * `cacheTags` / invalidation fields; otherwise those fields are omitted from types.
  *
  * @example
- * // src/prisma/define-repo.ts
- * import { createDefineRepo } from '@prismakit/nestjs';
- * import type { Prisma } from '@prisma/client';
  * export const defineRepo = createDefineRepo<Prisma.TypeMap>();
  *
- * // src/users/user.repository.ts
- * export const UserRepository = defineRepo({
+ * export class UserRepository extends defineRepo({
  *   model: 'user',
  *   scalarFields: Prisma.UserScalarFieldEnum,
  *   cache: { ttl: 86400 },
- * });
- * export type UserRepository = InstanceType<typeof UserRepository>;
+ * }) {}
  */
 export function createDefineRepo<TTypeMap extends PrismaTypeMapLike>() {
   return function defineRepo<const O extends RuntimeRepoOptions>(
     options: O,
-  ): new (
-    ...args: never[]
-  ) => RepositoryApiFromTypeMap<
-    TTypeMap,
-    CamelToPascal<O['model']> & keyof TTypeMap['model'],
-    HasCacheFromOptions<O>
-  > {
-    return createInjectableRepository(options) as new (
-      ...args: never[]
-    ) => RepositoryApiFromTypeMap<
-      TTypeMap,
-      CamelToPascal<O['model']> & keyof TTypeMap['model'],
-      HasCacheFromOptions<O>
+  ): InjectableRepo<RepoApi<TTypeMap, O>> {
+    return createInjectableRepository(options) as InjectableRepo<
+      RepoApi<TTypeMap, O>
     >;
   };
 }
