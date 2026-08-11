@@ -80,6 +80,7 @@ Full walkthrough: [Getting started](docs/getting-started.md).
 | ESLint | [docs/reference/eslint.md](docs/reference/eslint.md) |
 | Rules (required) | [docs/RULES.md](docs/RULES.md) |
 | Cursor skills | [skills/](skills/) (`npx prismakit skills`) |
+| NestJS starter | sibling repo `starter-prismakit-nestjs` (Nest 11 + Prisma 7 + MinIO presign) |
 
 **Forbidden:** inject `PrismaClient` / call `prisma.model.*` outside `repositories/`.
 
