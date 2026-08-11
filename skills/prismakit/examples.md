@@ -232,8 +232,7 @@ const b = await users.getThrowById({ id: 'u1', select, setCache: true }); // cac
 npx prismakit generate product --cache
 npx prismakit generate product --cache --full --route products
 npx prismakit generate product --prisma-import src/infrastructure/prisma/client --dry-run
-npx prismakit codegen --write
-npx prismakit validate
+npx prismakit validate --auto-register
 ```
 
 After repo-only generate: register the class (Nest `providers`, or `new RepoClass({ prisma, cache })` in plain Node). After `--full`: import the feature module in `app.module.ts`.

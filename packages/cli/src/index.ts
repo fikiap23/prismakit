@@ -1,5 +1,4 @@
 export { runGenerate, type GenerateCommandOptions } from './commands/generate';
-export { runCodegen, type CodegenCommandOptions } from './commands/codegen';
 export { runValidate, type ValidateCommandOptions } from './commands/validate';
 export {
   runSkills,

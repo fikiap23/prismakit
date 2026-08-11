@@ -74,7 +74,7 @@ Prefer [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) fo
 |---------|------|
 | [`@prismakit/redis`](https://www.npmjs.com/package/@prismakit/redis) | Redis `CacheAdapter` |
 | [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | NestJS integration |
-| [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | Scaffold / codegen / validate |
+| [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | Scaffold / validate / skills |
 | [`@prismakit/eslint-plugin`](https://www.npmjs.com/package/@prismakit/eslint-plugin) | Repository-only ESLint rules |
 
 ## Docs

@@ -3,11 +3,14 @@ import type { PaginatedResult } from './paginated-result.type';
 import type {
   PrismaTypeMapLike,
   TypeMapCreateInput,
+  TypeMapCreateManyInput,
   TypeMapGetPayload,
   TypeMapOrderByInput,
   TypeMapSelect,
   TypeMapUpdateInput,
+  TypeMapUpdateManyInput,
   TypeMapWhereInput,
+  TypeMapWhereUniqueInput,
 } from './prisma-typemap.type';
 import type { RowLockOptions } from './row-lock-options.type';
 
@@ -43,6 +46,8 @@ type InvalidateCacheMethod<THasCache extends boolean> = THasCache extends true
     }
   : {};
 
+type IdArg = string | Record<string, string>;
+
 /**
  * True when factory options include a concrete `cache` config (`true` or options object).
  */
@@ -51,6 +56,12 @@ export type HasCacheFromOptions<O> = O extends {
 }
   ? true
   : false;
+
+/**
+ * Instance type of a constructor returned by `createDefineRepo` / `defineAppRepo`.
+ */
+export type RepositoryOf<TCtor extends abstract new (...args: never[]) => unknown> =
+  InstanceType<TCtor>;
 
 /**
  * Repository method surface typed from Prisma `TypeMap` — no per-repo
@@ -72,9 +83,17 @@ export type RepositoryApiFromTypeMap<
     } & CacheMutation<TypeMapGetPayload<TTypeMap, TModel, T>, THasCache>,
   ): Promise<TypeMapGetPayload<TTypeMap, TModel, T>>;
 
+  createMany(
+    args: {
+      tx?: ClientLike;
+      data: TypeMapCreateManyInput<TTypeMap, TModel>[];
+      skipDuplicates?: boolean;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
+
   getById<T extends TypeMapSelect<TTypeMap, TModel>>(
     params: {
-      id: string;
+      id: IdArg;
       select?: T;
       tx?: ClientLike;
       lock?: RowLockOptions;
@@ -83,7 +102,7 @@ export type RepositoryApiFromTypeMap<
 
   getThrowById<T extends TypeMapSelect<TTypeMap, TModel>>(
     params: {
-      id: string;
+      id: IdArg;
       select?: T;
       tx?: ClientLike;
       lock?: RowLockOptions;
@@ -95,6 +114,8 @@ export type RepositoryApiFromTypeMap<
       tx?: ClientLike;
       where?: TypeMapWhereInput<TTypeMap, TModel>;
       select?: T;
+      orderBy?: TypeMapOrderByInput<TTypeMap, TModel>;
+      lock?: RowLockOptions;
     } & CacheQueryRead<TypeMapWhereInput<TTypeMap, TModel>, THasCache>,
   ): Promise<TypeMapGetPayload<TTypeMap, TModel, T> | null>;
 
@@ -106,6 +127,7 @@ export type RepositoryApiFromTypeMap<
       orderBy?: TypeMapOrderByInput<TTypeMap, TModel>;
       take?: number;
       skip?: number;
+      lock?: RowLockOptions;
     } & CacheQueryRead<TypeMapWhereInput<TTypeMap, TModel>, THasCache>,
   ): Promise<TypeMapGetPayload<TTypeMap, TModel, T>[]>;
 
@@ -123,8 +145,26 @@ export type RepositoryApiFromTypeMap<
   updateById<T extends TypeMapSelect<TTypeMap, TModel>>(
     args: {
       tx?: ClientLike;
-      id: string;
+      id: IdArg;
       data: TypeMapUpdateInput<TTypeMap, TModel>;
+      select?: T;
+    } & CacheMutation<TypeMapGetPayload<TTypeMap, TModel, T>, THasCache>,
+  ): Promise<TypeMapGetPayload<TTypeMap, TModel, T>>;
+
+  updateMany(
+    args: {
+      tx?: ClientLike;
+      where: TypeMapWhereInput<TTypeMap, TModel>;
+      data: TypeMapUpdateManyInput<TTypeMap, TModel>;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
+
+  upsert<T extends TypeMapSelect<TTypeMap, TModel>>(
+    args: {
+      tx?: ClientLike;
+      where: TypeMapWhereUniqueInput<TTypeMap, TModel>;
+      create: TypeMapCreateInput<TTypeMap, TModel>;
+      update: TypeMapUpdateInput<TTypeMap, TModel>;
       select?: T;
     } & CacheMutation<TypeMapGetPayload<TTypeMap, TModel, T>, THasCache>,
   ): Promise<TypeMapGetPayload<TTypeMap, TModel, T>>;
@@ -132,8 +172,15 @@ export type RepositoryApiFromTypeMap<
   deleteById<T extends TypeMapSelect<TTypeMap, TModel>>(
     args: {
       tx?: ClientLike;
-      id: string;
+      id: IdArg;
       select?: T;
     } & CacheMutation<TypeMapGetPayload<TTypeMap, TModel, T>, THasCache>,
   ): Promise<TypeMapGetPayload<TTypeMap, TModel, T>>;
+
+  deleteMany(
+    args: {
+      tx?: ClientLike;
+      where: TypeMapWhereInput<TTypeMap, TModel>;
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<{ count: number }>;
 } & InvalidateCacheMethod<THasCache>;

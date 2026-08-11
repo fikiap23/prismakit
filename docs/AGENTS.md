@@ -82,8 +82,7 @@ await this.tx.execTx(
 ```bash
 npx prismakit generate <name> --cache
 npx prismakit generate <name> --cache --full
-npx prismakit codegen
-npx prismakit validate
+npx prismakit validate --auto-register
 ```
 
 ## Enforcement

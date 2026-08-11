@@ -36,6 +36,7 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | [From raw Prisma](guide/migration-from-raw-prisma.md) | Migrate findUnique / $transaction → repositories |
 | [From Prisma `$extends`](guide/migration-from-prisma-extends.md) | When to prefer PrismaKit |
 | [From TypeORM](guide/migration-from-typeorm.md) | Repository / EntityManager mapping |
+| [2.x → 3.0](guide/migration-to-3.md) | Relation aliases removed; TypeMap bulk ops |
 
 ## Migration
 
@@ -44,12 +45,13 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | Raw `PrismaClient` | [migration-from-raw-prisma.md](guide/migration-from-raw-prisma.md) |
 | Prisma `$extends` | [migration-from-prisma-extends.md](guide/migration-from-prisma-extends.md) |
 | TypeORM | [migration-from-typeorm.md](guide/migration-from-typeorm.md) |
+| PrismaKit 2.x | [migration-to-3.md](guide/migration-to-3.md) |
 
 ## Reference
 
 | Page | Contents |
 |------|----------|
-| [CLI](reference/cli.md) | `generate`, `codegen`, `validate` |
+| [CLI](reference/cli.md) | `generate`, `validate`, `skills` |
 | [ESLint plugin](reference/eslint.md) | Rules and flat config |
 | [AGENTS.md](AGENTS.md) | Short contract for humans and AI agents |
 | [Cursor skills](../skills/) | Agent skills — `npx prismakit skills` |

@@ -12,6 +12,8 @@ import {
   assertSelectComposeValid,
   AutoComposer,
   createRepository,
+  DEFAULT_SCHEMA_PATH,
+  ensurePrismaMeta,
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
   pascalToRepoKey,
@@ -59,6 +61,7 @@ export type PrismaKitModuleOptions = {
   /**
    * When set (and `dmmf` is omitted), load Prisma meta from this schema file
    * so auto-compose / locks get free FK naming.
+   * Defaults to `prisma/schema.prisma`.
    */
   schemaPath?: string;
   /** When true, run assertSelectComposeValid on module init. */
@@ -121,14 +124,31 @@ function wireTelemetry(options: PrismaKitModuleOptions): void {
   });
 }
 
+let warnedMissingDefaultSchema = false;
+
+function resolvedSchemaPath(options: PrismaKitModuleOptions): string {
+  return options.schemaPath ?? DEFAULT_SCHEMA_PATH;
+}
+
 function applyModuleOptions(options: PrismaKitModuleOptions): void {
   if (options.cacheModels) {
     setRegisteredCacheModels(options.cacheModels);
   }
   if (options.dmmf) {
     loadPrismaMetaFromDmmf(options.dmmf);
-  } else if (options.schemaPath) {
-    loadPrismaMetaFromSchema(options.schemaPath);
+  } else {
+    const schemaPath = resolvedSchemaPath(options);
+    const loaded = ensurePrismaMeta({ schemaPath });
+    if (!loaded) {
+      if (options.schemaPath) {
+        loadPrismaMetaFromSchema(options.schemaPath);
+      } else if (!warnedMissingDefaultSchema) {
+        warnedMissingDefaultSchema = true;
+        console.warn(
+          `[PrismaKit] ${DEFAULT_SCHEMA_PATH} not found; auto-compose requires schemaPath or dmmf`,
+        );
+      }
+    }
   }
   if (options.compose) {
     setComposeOptions(options.compose);
@@ -146,15 +166,17 @@ function autoRegisterStubRepos(
   let models: string[] = [];
   if (Array.isArray(options.autoRegisterModels)) {
     models = [...options.autoRegisterModels];
-  } else if (options.schemaPath) {
-    models = getSchemaModels(options.schemaPath).map((m) =>
-      pascalToRepoKey(m.name),
-    );
   } else {
-    console.warn(
-      '[PrismaKit] autoRegisterModels: true requires schemaPath or an explicit model list',
-    );
-    return;
+    try {
+      models = getSchemaModels(resolvedSchemaPath(options)).map((m) =>
+        pascalToRepoKey(m.name),
+      );
+    } catch {
+      console.warn(
+        '[PrismaKit] autoRegisterModels: true requires schemaPath or an explicit model list',
+      );
+      return;
+    }
   }
 
   for (const model of models) {
@@ -194,7 +216,10 @@ export class PrismaKitModule implements OnModuleInit {
       }
     }
     if (!this.options?.validateCompose) return;
-    assertSelectComposeValid(process.cwd());
+    assertSelectComposeValid(process.cwd(), {
+      schemaPath: resolvedSchemaPath(this.options),
+      autoRegisterModels: this.options.autoRegisterModels,
+    });
   }
 
   /**

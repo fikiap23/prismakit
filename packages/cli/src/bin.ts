@@ -1,5 +1,4 @@
 import { runGenerate } from './commands/generate';
-import { runCodegen } from './commands/codegen';
 import { runValidate } from './commands/validate';
 import { runSkills } from './commands/skills';
 
@@ -8,8 +7,7 @@ function printHelp(): void {
 
 Usage:
   prismakit generate <name> [--cache] [--full] [--helpers] [--dto] [--route <path>] [--prisma-import <path>] [--dry-run]
-  prismakit codegen [--schema <path>] [--write] [--out <file>]
-  prismakit validate [--no-assert]
+  prismakit validate [--schema <path>] [--auto-register] [--no-assert]
   prismakit skills [--global] [--with-rules] [--skill <name>] [--project <path>] [--list] [--dry-run]
   prismakit help
 
@@ -20,8 +18,7 @@ Pass --helpers / --dto with --full for helpers and Swagger DTOs.
 Examples:
   prismakit generate product --cache
   prismakit generate product --cache --full --helpers --dto --route products
-  prismakit codegen --write
-  prismakit validate
+  prismakit validate --auto-register
   prismakit skills
   prismakit skills --global
   prismakit skills --with-rules
@@ -87,18 +84,12 @@ function main(): void {
         });
         break;
       }
-      case 'codegen': {
-        runCodegen({
-          schemaPath:
-            typeof flags.schema === 'string' ? flags.schema : undefined,
-          write: !!flags.write,
-          outFile: typeof flags.out === 'string' ? flags.out : undefined,
-        });
-        break;
-      }
       case 'validate': {
         runValidate({
           assert: !flags['no-assert'],
+          schemaPath:
+            typeof flags.schema === 'string' ? flags.schema : undefined,
+          autoRegisterModels: !!flags['auto-register'],
         });
         break;
       }

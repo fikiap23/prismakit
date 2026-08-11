@@ -2,8 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { RepositoryRegistry } from '../repository-registry';
-import { getPrismaMeta } from '../schema/prisma-meta';
-import { buildRelationModelCandidates } from './relation-resolver';
+import {
+  ensurePrismaMeta,
+  getPrismaMeta,
+} from '../schema/prisma-meta';
 
 export interface ComposeValidationIssue {
   file: string;
@@ -17,6 +19,13 @@ export interface ValidateSelectComposeOptions {
   repoFilePattern?: RegExp;
   /** RegExp matched against select/where type file paths. */
   selectFilePattern?: RegExp;
+  /** Schema file used to load Prisma meta when not already loaded. */
+  schemaPath?: string;
+  /**
+   * Seed the mock registry with schema models the same way Nest
+   * `autoRegisterModels` does at runtime.
+   */
+  autoRegisterModels?: boolean | readonly string[];
 }
 
 const DEFAULT_MODULES_ROOT = path.join('src', 'modules');
@@ -131,32 +140,58 @@ function resolveRelationForValidate(
   relKey: string,
   registry: RepositoryRegistry,
   preferredSourceModels: string[],
-): string | undefined {
+): { target?: string; reason?: string } {
   const meta = getPrismaMeta();
-  if (meta) {
-    for (const source of preferredSourceModels) {
-      const target = meta[source]?.relations[relKey]?.targetModel;
-      if (target && registry.get(target)) return target;
-    }
-    for (const model of Object.values(meta)) {
-      const target = model.relations[relKey]?.targetModel;
-      if (target && registry.get(target)) return target;
+  if (!meta) {
+    return { reason: 'Prisma schema meta not loaded — pass schemaPath' };
+  }
+
+  for (const source of preferredSourceModels) {
+    const target = meta[source]?.relations[relKey]?.targetModel;
+    if (target && registry.get(target)) return { target };
+    if (target) {
+      return {
+        target,
+        reason: `schema maps "${source}.${relKey}" to "${target}" but that model has no registered repository`,
+      };
     }
   }
 
-  const candidates = buildRelationModelCandidates(relKey);
-  return candidates.find((c) => registry.get(c));
+  for (const model of Object.values(meta)) {
+    const target = model.relations[relKey]?.targetModel;
+    if (target && registry.get(target)) return { target };
+  }
+
+  const sources = preferredSourceModels.join(', ') || 'unknown';
+  return {
+    reason: `"${relKey}" is not a relation on ${sources}`,
+  };
+}
+
+function extraAutoRegisterModels(
+  autoRegisterModels: boolean | readonly string[],
+): string[] {
+  if (Array.isArray(autoRegisterModels)) {
+    return [...autoRegisterModels];
+  }
+  const meta = getPrismaMeta();
+  return meta ? Object.keys(meta) : [];
 }
 
 /**
  * Validates that modules using relational select presets have repositories
  * with `model` (+ `scalarFields` or loaded Prisma meta), and that relation
- * keys resolve via meta / aliases.
+ * keys resolve via schema meta to a registered repository.
  */
 export function validateSelectCompose(
   projectRoot: string,
   options: ValidateSelectComposeOptions = {},
 ): ComposeValidationIssue[] {
+  ensurePrismaMeta({
+    schemaPath: options.schemaPath,
+    cwd: projectRoot,
+  });
+
   const modulesRoot = options.modulesRoot ?? DEFAULT_MODULES_ROOT;
   const repoFilePattern = options.repoFilePattern ?? DEFAULT_REPO_FILE_RE;
   const selectFilePattern =
@@ -171,6 +206,15 @@ export function validateSelectCompose(
   const registeredModelKeys = [
     ...new Set([...repoModels.values()].filter((m) => m.length > 0)),
   ];
+
+  if (options.autoRegisterModels) {
+    for (const model of extraAutoRegisterModels(options.autoRegisterModels)) {
+      if (model && !registeredModelKeys.includes(model)) {
+        registeredModelKeys.push(model);
+      }
+    }
+  }
+
   const registry = buildMockRegistry(registeredModelKeys);
 
   const modulesParts = modulesRoot.split(/[/\\]/).filter(Boolean);
@@ -208,14 +252,12 @@ export function validateSelectCompose(
         registry,
         modelsInModule,
       );
-      if (!resolved) {
-        const candidates = buildRelationModelCandidates(relKey);
-        const metaHint = getPrismaMeta()
-          ? ' (check schema meta / registered target repo)'
-          : '';
+      if (!resolved.target || !registry.get(resolved.target)) {
         issues.push({
           file,
-          message: `Relation "${relKey}" cannot be resolved to a registered repository model (candidates: ${candidates.join(', ')})${metaHint}`,
+          message: `Relation "${relKey}" cannot be resolved to a registered repository model${
+            resolved.reason ? ` (${resolved.reason})` : ''
+          }`,
         });
       }
     }

@@ -1,6 +1,6 @@
 # @prismakit/cli
 
-CLI for PrismaKit: scaffold repositories, codegen relation aliases, validate compose.
+CLI for PrismaKit: scaffold repositories, validate compose, install agent skills.
 
 [Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [CLI reference](https://github.com/fikiap23/prismakit/blob/master/docs/reference/cli.md) · [GitHub](https://github.com/fikiap23/prismakit)
 
@@ -35,16 +35,12 @@ npx prismakit generate product --prisma-import @prisma/client
 | `--prisma-import` | Prisma client import (default `@prisma/client`) |
 | `--dry-run` | Print files without writing |
 
-### `codegen` — relation aliases
-
-```bash
-npx prismakit codegen --write
-```
-
 ### `validate` — compose safety
 
+Loads Prisma schema meta so relation fields resolve without a manual alias map.
+
 ```bash
-npx prismakit validate
+npx prismakit validate --auto-register
 ```
 
 ### `skills` — Cursor / agent skills

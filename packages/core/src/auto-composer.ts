@@ -535,7 +535,7 @@ export class AutoComposer {
     throw new Error(
       `[AutoComposer] Cannot resolve FK for "${sourceModel}.${relKey}" → "${targetModel}". ` +
         `Expected target field(s) [${missing.join(', ')}] but they are not scalars on "${targetModel}". ` +
-        `Load Prisma meta (loadPrismaMetaFromDmmf) or register relation aliases.`,
+        `Load Prisma meta via schemaPath / dmmf (loadPrismaMetaFromDmmf or loadPrismaMetaFromSchema).`,
     );
   }
 }

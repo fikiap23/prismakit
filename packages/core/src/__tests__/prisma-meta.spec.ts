@@ -224,14 +224,41 @@ describe('prisma meta / free naming', () => {
     });
   });
 
-  it('resolveRelationModel prefers DMMF target over aliases', () => {
+  it('resolveRelationModel uses DMMF target per source model', () => {
     loadPrismaMetaFromDmmf(sampleDmmf);
     const registry = new RepositoryRegistry();
     registry.register('user', {
       repository: { getMany: async () => [] },
     });
+    registry.register('post', {
+      repository: { getMany: async () => [] },
+    });
     expect(resolveRelationModel('author', registry, 'post')).toBe('user');
     expect(resolveRelationModel('editor', registry, 'post')).toBe('user');
+    expect(resolveRelationModel('posts', registry, 'user')).toBe('post');
+  });
+
+  it('resolveRelationModel throws when meta is not loaded', () => {
+    const registry = new RepositoryRegistry();
+    expect(() => resolveRelationModel('author', registry, 'post')).toThrow(
+      /schema meta is not loaded/,
+    );
+  });
+
+  it('resolveRelationModel throws when relation is absent', () => {
+    loadPrismaMetaFromDmmf(sampleDmmf);
+    const registry = new RepositoryRegistry();
+    expect(() => resolveRelationModel('images', registry, 'post')).toThrow(
+      /is not on schema model "post"/,
+    );
+  });
+
+  it('resolveRelationModel throws when target repo is missing', () => {
+    loadPrismaMetaFromDmmf(sampleDmmf);
+    const registry = new RepositoryRegistry();
+    expect(() => resolveRelationModel('author', registry, 'post')).toThrow(
+      /no repository is registered for "user"/,
+    );
   });
 
   it('buildLockConfigFromMeta resolves client key and columns', () => {

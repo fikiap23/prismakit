@@ -43,6 +43,15 @@ type ArgsSelect<TArgs> = TArgs extends { select?: infer S }
   ? NonNullable<S>
   : object;
 
+/** Args object for a Prisma TypeMap operation (`create`, `createMany`, …). */
+export type TypeMapArgs<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+  TOp extends string,
+> = OpsOf<TTypeMap, TModel> extends Record<TOp, { args: infer A }>
+  ? A
+  : unknown;
+
 export type TypeMapSelect<
   TTypeMap extends PrismaTypeMapLike,
   TModel extends keyof TTypeMap['model'],
@@ -72,10 +81,34 @@ export type TypeMapOrderByInput<
   TModel extends keyof TTypeMap['model'],
 > = ArgsOrderBy<OpsOf<TTypeMap, TModel>['findMany']['args']>;
 
+type Unarray<T> = T extends readonly (infer U)[] ? U : T;
+
+/** Element type of `createMany` `data` (falls back to {@link TypeMapCreateInput}). */
+export type TypeMapCreateManyInput<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'createMany'> extends { data?: infer D }
+  ? Unarray<NonNullable<D>>
+  : TypeMapCreateInput<TTypeMap, TModel>;
+
+/** `data` of `updateMany` (falls back to {@link TypeMapUpdateInput}). */
+export type TypeMapUpdateManyInput<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'updateMany'> extends { data: infer D }
+  ? D
+  : TypeMapUpdateInput<TTypeMap, TModel>;
+
+/** Unique where from `findUnique` / `upsert` (falls back to {@link TypeMapWhereInput}). */
+export type TypeMapWhereUniqueInput<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'findUnique'> extends { where: infer W }
+  ? W
+  : TypeMapWhereInput<TTypeMap, TModel>;
+
 type PayloadScalars<P> = P extends { scalars: infer S } ? S : never;
 type PayloadObjects<P> = P extends { objects: infer O } ? O : never;
-
-type Unarray<T> = T extends (infer U)[] ? U : T;
 
 type DefaultPayloadResult<TPayload> = PayloadScalars<TPayload>;
 

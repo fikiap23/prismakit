@@ -1,90 +1,52 @@
 import { RepositoryRegistry } from '../repository-registry';
-import { getModelMeta } from '../schema/prisma-meta';
+import { getModelMeta, getPrismaMeta } from '../schema/prisma-meta';
 
 /**
- * Maps Prisma relation **field names** to repository registry `model` keys when they differ.
+ * Resolves a Prisma relation field to a registered repository model key
+ * using source-scoped schema / DMMF meta.
  *
- * Empty by default — apps inject codegen output via `setRelationModelAliases`.
- * Prefer loading Prisma DMMF via `loadPrismaMetaFromDmmf` so aliases are optional.
- * Consumers may also mutate this object directly.
- */
-export let RELATION_MODEL_ALIASES: Record<string, string> = {};
-
-/**
- * Replace the relation-field → registry-model alias map (e.g. from CLI codegen).
- */
-export function setRelationModelAliases(
-  aliases: Record<string, string>,
-): void {
-  RELATION_MODEL_ALIASES = { ...aliases };
-}
-
-/** Merge aliases into the current map (codegen / app bootstrap). */
-export function mergeRelationModelAliases(
-  aliases: Record<string, string>,
-): void {
-  RELATION_MODEL_ALIASES = { ...RELATION_MODEL_ALIASES, ...aliases };
-}
-
-export function getRelationModelAliases(): Record<string, string> {
-  return { ...RELATION_MODEL_ALIASES };
-}
-
-/**
- * Suffix → registry model. Applied when `relKey.endsWith(suffix)` and `relKey !== model`.
- * Empty by default — apps should use Prisma meta / `setRelationModelAliases`.
- */
-export const RELATION_MODEL_SUFFIX_RULES: Readonly<
-  Array<{ suffix: string; model: string }>
-> = [];
-
-/** Ordered candidates for registry lookup (first match wins). */
-export function buildRelationModelCandidates(relKey: string): string[] {
-  const seen = new Set<string>();
-  const candidates: string[] = [];
-
-  const add = (model: string) => {
-    if (seen.has(model)) return;
-    seen.add(model);
-    candidates.push(model);
-  };
-
-  add(relKey);
-
-  const alias = RELATION_MODEL_ALIASES[relKey];
-  if (alias) add(alias);
-
-  for (const { suffix, model } of RELATION_MODEL_SUFFIX_RULES) {
-    if (relKey.endsWith(suffix) && relKey !== model) {
-      add(model);
-    }
-  }
-
-  return candidates;
-}
-
-/**
- * Resolves a Prisma relation field to a registered repository model key.
- * Throws if no repository is registered for any candidate.
- *
- * When `sourceModel` is set and Prisma meta is loaded, uses DMMF target first.
+ * Throws if meta is not loaded, the relation is absent on the source model,
+ * or the target model has no registered repository.
  */
 export function resolveRelationModel(
   relKey: string,
   registry: RepositoryRegistry,
-  sourceModel?: string,
+  sourceModel: string,
 ): string {
-  if (sourceModel) {
-    const fromMeta = getModelMeta(sourceModel)?.relations[relKey]?.targetModel;
-    if (fromMeta && registry.get(fromMeta)) {
-      return fromMeta;
-    }
+  const meta = getPrismaMeta();
+  if (!meta) {
+    throw new Error(
+      `[PrismaKit] Cannot resolve relation "${sourceModel}.${relKey}": Prisma schema meta is not loaded. ` +
+        `Pass schemaPath (default prisma/schema.prisma) or dmmf to PrismaKitModule, ` +
+        `or call loadPrismaMetaFromSchema / loadPrismaMetaFromDmmf.`,
+    );
   }
 
-  for (const model of buildRelationModelCandidates(relKey)) {
-    if (registry.get(model)) return model;
+  const modelMeta = getModelMeta(sourceModel);
+  if (!modelMeta) {
+    throw new Error(
+      `[PrismaKit] Cannot resolve relation "${sourceModel}.${relKey}": ` +
+        `model "${sourceModel}" is not in Prisma schema meta.`,
+    );
   }
 
-  registry.getOrThrow(relKey);
-  return relKey;
+  const relation = modelMeta.relations[relKey];
+  if (!relation) {
+    const known = Object.keys(modelMeta.relations);
+    throw new Error(
+      `[PrismaKit] Relation "${relKey}" is not on schema model "${sourceModel}". ` +
+        `Known relations: [${known.join(', ') || 'none'}].`,
+    );
+  }
+
+  const target = relation.targetModel;
+  if (registry.get(target)) {
+    return target;
+  }
+
+  throw new Error(
+    `[PrismaKit] Relation "${sourceModel}.${relKey}" maps to model "${target}" ` +
+      `but no repository is registered for "${target}". ` +
+      `Define a repository with model: '${target}' or enable autoRegisterModels.`,
+  );
 }

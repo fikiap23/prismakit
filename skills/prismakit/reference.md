@@ -1,6 +1,6 @@
 # PrismaKit core reference
 
-API surface for `@prismakit/core` 2.2.x. Read [SKILL.md](SKILL.md) first.
+API surface for `@prismakit/core` 3.x. Read [SKILL.md](SKILL.md) first.
 
 ## Packages
 
@@ -9,7 +9,7 @@ API surface for `@prismakit/core` 2.2.x. Read [SKILL.md](SKILL.md) first.
 | `@prismakit/core` | `createRepository`, AutoComposer, locks, pagination, `CacheAdapter` |
 | `@prismakit/redis` | `RedisCacheAdapter` |
 | `@prismakit/memory` | `MemoryCacheAdapter` (tests / local) |
-| `@prismakit/cli` | `prismakit generate / codegen / validate` |
+| `@prismakit/cli` | `prismakit generate / validate / skills` |
 | `@prismakit/eslint-plugin` | Repository-only data-access rules |
 
 Node ≥ 20. Install:
@@ -191,18 +191,9 @@ loadPrismaMetaFromDmmf(Prisma.dmmf);                 // Prisma 5/6
 loadPrismaMetaFromSchema('prisma/schema.prisma');    // Prisma 7 (no Prisma.dmmf)
 ```
 
-Without meta, fallback heuristics: `${relKey}Id` / `${sourceModel}Id`.
+Without meta, AutoComposer cannot resolve renamed relations; pass `schemaPath` or `dmmf`. Relation field → registry key is source-scoped (`Category.products` vs `Tag.products` can target different models).
 
-Optional aliases:
-
-```typescript
-import { setRelationModelAliases, mergeRelationModelAliases } from '@prismakit/core';
-setRelationModelAliases({ settings: 'operationalSetting' });
-```
-
-Generate suggestions: `npx prismakit codegen --write`.
-
-Validate: `npx prismakit validate` or `assertSelectComposeValid`.
+Validate: `npx prismakit validate --auto-register` or `assertSelectComposeValid`.
 
 ### `ComposeOptions` (global via `setComposeOptions`)
 
@@ -252,8 +243,7 @@ setTelemetry({
 
 ```bash
 npx prismakit generate <name> [--cache] [--full] [--route <path>] [--prisma-import <path>] [--dry-run]
-npx prismakit codegen [--schema <path>] [--write] [--out <file>]
-npx prismakit validate [--no-assert]
+npx prismakit validate [--schema <path>] [--auto-register] [--no-assert]
 npx prismakit help
 ```
 

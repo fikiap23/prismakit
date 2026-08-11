@@ -188,7 +188,7 @@ await posts.getThrowById({
 
 Requirements: source repo has `model`; `scalarFields` **or** Prisma meta loaded (`loadPrismaMetaFromDmmf(Prisma.dmmf)` on Prisma 5/6, `loadPrismaMetaFromSchema('prisma/schema.prisma')` on Prisma 7); related model repos are registered.
 
-AutoComposer injects the target primary key into nested selects even if omitted. `setRelationModelAliases` is only for overrides when meta is missing.
+AutoComposer injects the target primary key into nested selects even if omitted. Relation field names resolve from schema / DMMF meta (`schemaPath` defaults to `prisma/schema.prisma`).
 
 ## Row locks
 
@@ -217,8 +217,7 @@ await wallets.invalidateCache({ id });
 ```bash
 npx prismakit generate <name> --cache
 npx prismakit generate <name> --cache --full --route <path>
-npx prismakit codegen --write
-npx prismakit validate
+npx prismakit validate --auto-register
 ```
 
 ```js

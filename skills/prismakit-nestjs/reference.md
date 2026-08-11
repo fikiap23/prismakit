@@ -1,6 +1,6 @@
 # PrismaKit NestJS reference
 
-API surface for `@prismakit/nestjs` 2.2.x. Repository methods, cache, compose, and locks are documented in skill `prismakit` (`reference.md` in that skill). This file covers the Nest adapter only.
+API surface for `@prismakit/nestjs` 3.x. Repository methods, cache, compose, and locks are documented in skill `prismakit` (`reference.md` in that skill). This file covers the Nest adapter only.
 
 ## `PrismaKitModuleOptions`
 
@@ -9,7 +9,7 @@ API surface for `@prismakit/nestjs` 2.2.x. Repository methods, cache, compose, a
 | `prisma` | yes | `PrismaClient` (or compatible). Provided as `PRISMAKIT_PRISMA` for repositories only. |
 | `cache` | no | `CacheAdapter` (`RedisCacheAdapter` / `MemoryCacheAdapter`). |
 | `dmmf` | no | `Prisma.dmmf` on Prisma 5/6. Skip on Prisma 7 — use `schemaPath`. |
-| `schemaPath` | no | Load meta from `schema.prisma` when `dmmf` is omitted (compose + locks). |
+| `schemaPath` | no | Load meta from `schema.prisma` when `dmmf` is omitted (compose + locks). Defaults to `prisma/schema.prisma`. |
 | `validateCompose` | no | When `true`, `assertSelectComposeValid` on module init. |
 | `cacheModels` | no | Strict allowlist of model keys with `cache` config. Omit = fail-open. |
 | `compose` | no | `ComposeOptions`: `maxDepth` (default 10), `parallel` (default true), `setCache` (default true). `tx` is per-call only. |
@@ -86,6 +86,8 @@ await this.tx.execTx<User, Prisma.TransactionClient>(async (tx) => { /* ... */ }
 `createDefineRepo` runtime options: `model`, `scalarFields?`, `primaryKey?`, `cache?`, `lock?`, `schemaPath?`.
 
 When `cache` is set, the returned API includes `setCache` / `cacheTags` / `invalidate` / `tags` / `invalidateCache`. Otherwise those fields are omitted from the type (`HasCacheFromOptions`).
+
+`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `createMany`, `updateMany`, `upsert`, `deleteMany`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. Derive the instance type from the constructor — do not restate model/cache as a second generic:
 
 Export the instance type:
 

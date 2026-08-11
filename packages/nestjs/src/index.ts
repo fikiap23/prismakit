@@ -50,6 +50,7 @@ export {
   type RepositoryApi,
   type RepositoryApiFromTypes,
   type RepositoryApiFromTypeMap,
+  type RepositoryOf,
   type HasCacheFromOptions,
   type PrismaTypeMapLike,
   type CamelToPascal,

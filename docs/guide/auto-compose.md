@@ -75,32 +75,14 @@ PrismaKitModule.forRoot({
 
 Schema naming can match normal Prisma Client usage — no `${relation}Id` convention required.
 
-Without meta, the kit falls back to `${relKey}Id` / `${sourceModel}Id` heuristics.
+`schemaPath` defaults to `prisma/schema.prisma` when `dmmf` is omitted. Relation field names (`images`, `parent`, `uploadedByUser`) resolve to registry keys (`productImage`, `category`, `user`) from schema meta — no alias map is needed. The same field name on two models (`Category.products` → `product`, `Tag.products` → `productTag`) is unambiguous because resolution is source-scoped.
 
-## Relation aliases (optional)
-
-Aliases remain for edge cases when DMMF is not loaded, or for overrides:
-
-```typescript
-import { setRelationModelAliases } from '@prismakit/core';
-
-setRelationModelAliases({
-  settings: 'operationalSetting',
-});
-```
-
-Or generate suggestions:
-
-```bash
-npx prismakit codegen --write
-```
-
-See [CLI](../reference/cli.md).
+Without meta, AutoComposer cannot resolve renamed relations; pass `schemaPath` or `dmmf`.
 
 ## Validation
 
 ```bash
-npx prismakit validate
+npx prismakit validate --auto-register
 ```
 
 Or at Nest boot:

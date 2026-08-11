@@ -30,14 +30,19 @@ export type {
 export type {
   RepositoryApiFromTypeMap,
   HasCacheFromOptions,
+  RepositoryOf,
 } from './types/repository-api-typemap.type';
 
 export type {
   PrismaTypeMapLike,
+  TypeMapArgs,
   TypeMapSelect,
   TypeMapCreateInput,
+  TypeMapCreateManyInput,
   TypeMapUpdateInput,
+  TypeMapUpdateManyInput,
   TypeMapWhereInput,
+  TypeMapWhereUniqueInput,
   TypeMapOrderByInput,
   TypeMapGetPayload,
   CamelToPascal,
@@ -96,19 +101,7 @@ export {
   RepositoryRegistry,
   type RegisteredRepository,
 } from './repository-registry';
-export {
-  resolveRelationModel,
-  buildRelationModelCandidates,
-  setRelationModelAliases,
-  mergeRelationModelAliases,
-  getRelationModelAliases,
-  RELATION_MODEL_ALIASES,
-  RELATION_MODEL_SUFFIX_RULES,
-} from './compose/relation-resolver';
-export {
-  computeRelationAliasesFromSchema,
-  candidatesWithoutAliases,
-} from './compose/relation-alias-codegen';
+export { resolveRelationModel } from './compose/relation-resolver';
 export {
   validateSelectCompose,
   assertSelectComposeValid,
@@ -155,6 +148,9 @@ export {
   buildPrismaMetaFromRuntimeDataModel,
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
+  ensurePrismaMeta,
+  resolveSchemaPath,
+  DEFAULT_SCHEMA_PATH,
   setPrismaMeta,
   clearPrismaMeta,
   getPrismaMeta,

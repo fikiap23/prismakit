@@ -18,7 +18,7 @@ general: {
 } satisfies Prisma.ProductSelect
 ```
 
-Do **not** build per-feature compose helpers — extend shared resolver / aliases when needed.
+Do **not** build per-feature compose helpers — relation field names resolve from schema / DMMF meta.
 
 ## Compose options
 

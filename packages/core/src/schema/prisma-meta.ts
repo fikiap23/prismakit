@@ -1,8 +1,14 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import {
   getSchemaModels,
   pascalToRepoKey,
   type SchemaModel,
 } from './parse-prisma-schema';
+
+/** Default schema location relative to `cwd`. */
+export const DEFAULT_SCHEMA_PATH = 'prisma/schema.prisma';
 
 /** Cardinality of a Prisma relation field on the source model. */
 export type RelationKind = 'one' | 'many';
@@ -299,6 +305,33 @@ export function loadPrismaMetaFromSchema(schemaPath?: string): PrismaMetaRegistr
   const meta = buildPrismaMetaFromSchemaModels(models);
   setPrismaMeta(meta);
   return meta;
+}
+
+/** Resolve `schemaPath` against `cwd` (default `prisma/schema.prisma`). */
+export function resolveSchemaPath(
+  schemaPath?: string,
+  cwd: string = process.cwd(),
+): string {
+  const raw = schemaPath ?? DEFAULT_SCHEMA_PATH;
+  return path.isAbsolute(raw) ? raw : path.join(cwd, raw);
+}
+
+/**
+ * Return already-loaded meta, or load it once from the schema file.
+ * Returns `null` when the schema file is missing (does not throw).
+ */
+export function ensurePrismaMeta(options?: {
+  schemaPath?: string;
+  cwd?: string;
+}): PrismaMetaRegistry | null {
+  const existing = getPrismaMeta();
+  if (existing) return existing;
+
+  const resolved = resolveSchemaPath(options?.schemaPath, options?.cwd);
+  if (!fs.existsSync(resolved)) {
+    return null;
+  }
+  return loadPrismaMetaFromSchema(resolved);
 }
 
 /**

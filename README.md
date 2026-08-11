@@ -17,8 +17,19 @@ Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 | [`@prismakit/redis`](https://www.npmjs.com/package/@prismakit/redis) | Redis `CacheAdapter` |
 | [`@prismakit/memory`](https://www.npmjs.com/package/@prismakit/memory) | In-memory `CacheAdapter` (tests / local) |
 | [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | `PrismaKitModule`, `TransactionService`, injectable repositories |
-| [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | `prismakit generate / codegen / validate` |
+| [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | `prismakit generate / validate / skills` |
 | [`@prismakit/eslint-plugin`](https://www.npmjs.com/package/@prismakit/eslint-plugin) | Enforce repository-only data access |
+
+## What's new in 3.0
+
+| Area | Highlights |
+|------|------------|
+| **Schema-only compose** | Relation fields resolve from schema / DMMF meta. Alias maps and `prismakit codegen` are gone |
+| **TypeMap parity** | `createDefineRepo` types include `createMany` / `updateMany` / `upsert` / `deleteMany` and `lock` on `getFirst` |
+| **Default schemaPath** | `prisma/schema.prisma` when `dmmf` is omitted |
+| **Self-loading validate** | `prismakit validate --auto-register` needs no alias file |
+
+See [migration to 3.0](docs/guide/migration-to-3.md).
 
 ## What's new in 2.2
 

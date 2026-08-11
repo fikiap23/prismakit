@@ -31,7 +31,7 @@ import { Prisma } from '@prisma/client';
       prisma: prismaClient,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
       cacheModels: ['user', 'product'],
-      schemaPath: 'prisma/schema.prisma', // Prisma 7; Prisma 5/6: dmmf: Prisma.dmmf
+      schemaPath: 'prisma/schema.prisma', // default; Prisma 5/6: dmmf: Prisma.dmmf
       validateCompose: true,
       compose: { maxDepth: 6, parallel: true, setCache: true },
     }),
@@ -42,7 +42,7 @@ export class AppModule {}
 
 `forRootAsync` when cache/URL come from `ConfigService` — see [examples.md](examples.md).
 
-Always load Prisma meta (`dmmf` or `schemaPath`) so auto-compose and `lock: true` resolve FKs/`@@map` without heuristics.
+`schemaPath` defaults to `prisma/schema.prisma`. Always load Prisma meta (`dmmf` or `schemaPath`) so auto-compose and `lock: true` resolve FKs/`@@map` from the schema — no relation-alias map.
 
 ## Factory (one default)
 

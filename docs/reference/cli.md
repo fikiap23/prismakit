@@ -41,34 +41,18 @@ Default output path: `src/modules/<kebab>/repositories/<kebab>.repository.ts`
 After `--full`, register `*Module` in `app.module.ts`.  
 After repo-only, register the repository class in your feature `providers`.
 
-## `codegen`
+## `validate`
 
-Suggest relation-field → registry-model aliases from `schema.prisma`.
+Heuristic validation that repository selects are compose-safe. Loads Prisma meta from `schema.prisma` so relation fields resolve to target models without a manual alias map.
 
 ```bash
-npx prismakit codegen [--schema <path>] [--write] [--out <file>]
+npx prismakit validate [--schema <path>] [--auto-register] [--no-assert]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--schema` | Path to schema (default `prisma/schema.prisma`) |
-| `--write` | Write output file |
-| `--out` | Output path (used with `--write`) |
-
-Apply aliases at bootstrap with `setRelationModelAliases` / `mergeRelationModelAliases` from `@prismakit/core`.
-
-See [Auto-compose](../guide/auto-compose.md).
-
-## `validate`
-
-Heuristic validation that repository selects are compose-safe.
-
-```bash
-npx prismakit validate [--no-assert]
-```
-
-| Flag | Description |
-|------|-------------|
+| `--auto-register` | Seed the mock registry with all schema models (same as Nest `autoRegisterModels: true`) |
 | `--no-assert` | Report only; do not throw |
 
 Nest alternative: `PrismaKitModule.forRoot({ validateCompose: true })`.

@@ -7,10 +7,6 @@ import { buildLockClause } from '../lock/row-lock';
 import { applyJitter } from '../cache/ttl-jitter.util';
 import { stableHash } from '../cache/stable-hash.util';
 import { selectIncludesSensitiveField } from '../cache/cache-guard.util';
-import {
-  buildRelationModelCandidates,
-  setRelationModelAliases,
-} from '../compose/relation-resolver';
 import { paginator } from '../pagination/paginator';
 import {
   setRegisteredCacheModels,
@@ -79,16 +75,6 @@ describe('cache utils', () => {
     expect(selectIncludesSensitiveField({ id: true }, ['password'])).toBe(
       false,
     );
-  });
-});
-
-describe('relation resolver', () => {
-  it('uses aliases', () => {
-    setRelationModelAliases({ settings: 'operationalSetting' });
-    expect(buildRelationModelCandidates('settings')).toContain(
-      'operationalSetting',
-    );
-    expect(buildRelationModelCandidates('settings')).toContain('settings');
   });
 });
 

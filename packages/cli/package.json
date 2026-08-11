@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/cli",
   "version": "2.2.3",
-  "description": "CLI for PrismaKit — generate modules, codegen relation aliases, validate compose",
+  "description": "CLI for PrismaKit — generate modules, validate compose, install agent skills",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=20"
@@ -39,7 +39,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=2.2.3"
+    "@prismakit/core": ">=3.0.0"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
@@ -60,7 +60,6 @@
   "keywords": [
     "prisma",
     "cli",
-    "codegen",
     "prismakit",
     "cursor",
     "skills"
