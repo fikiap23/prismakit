@@ -1,5 +1,11 @@
 # @prismakit/cli
 
+## 2.2.4
+
+### Patch Changes
+
+- 11e74e5: Add `prismakit skills` to install Cursor agent skills (`prismakit`, `prismakit-nestjs`) into `.cursor/skills` or `~/.cursor/skills`, with optional `--with-rules`.
+
 ## 2.2.3
 
 ### Patch Changes
