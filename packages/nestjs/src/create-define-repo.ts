@@ -39,26 +39,20 @@ type RuntimeRepoOptions = {
  * export type UserRepository = InstanceType<typeof UserRepository>;
  */
 export function createDefineRepo<TTypeMap extends PrismaTypeMapLike>() {
-  return function defineRepo<
-    const TModelKey extends string,
-    const O extends RuntimeRepoOptions & { model: TModelKey },
-    TPrismaModel extends CamelToPascal<TModelKey> &
-      keyof TTypeMap['model'] = CamelToPascal<TModelKey> &
-      keyof TTypeMap['model'],
-  >(
+  return function defineRepo<const O extends RuntimeRepoOptions>(
     options: O,
   ): new (
     ...args: never[]
   ) => RepositoryApiFromTypeMap<
     TTypeMap,
-    TPrismaModel,
+    CamelToPascal<O['model']> & keyof TTypeMap['model'],
     HasCacheFromOptions<O>
   > {
     return createInjectableRepository(options) as new (
       ...args: never[]
     ) => RepositoryApiFromTypeMap<
       TTypeMap,
-      TPrismaModel,
+      CamelToPascal<O['model']> & keyof TTypeMap['model'],
       HasCacheFromOptions<O>
     >;
   };

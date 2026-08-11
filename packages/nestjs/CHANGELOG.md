@@ -1,5 +1,11 @@
 # @prismakit/nestjs
 
+## 3.0.1
+
+### Patch Changes
+
+- Preserve the literal `model` key in `createDefineRepo` so `InstanceType<typeof Repo>` keeps nested select payload types (no more `never` on relations).
+
 ## 3.0.0
 
 ### Major Changes
