@@ -82,13 +82,19 @@ Use `TransactionService` from `@prismakit/nestjs`.
 
 ## Cursor rule and skills (optional)
 
-Copy [`templates/cursor-rules/data-access.mdc`](../../templates/cursor-rules/data-access.mdc) into your app’s `.cursor/rules/` so agents follow the same contract.
+```bash
+npx prismakit skills              # .cursor/skills in this app
+npx prismakit skills --global     # ~/.cursor/skills
+npx prismakit skills --with-rules # also copy data-access.mdc into .cursor/rules
+```
 
-For full agent workflows (factories, cache, compose, Nest `execTx`), install the Cursor skills from [`templates/cursor-skills/`](../../templates/cursor-skills/):
+Ecosystem installer (discovers [`skills/`](../../skills/) in this repo):
 
 ```bash
-bash templates/cursor-skills/scripts/install.sh
+npx skills add fikiap23/prismakit
 ```
+
+Manual copies: [`templates/cursor-rules/data-access.mdc`](../../templates/cursor-rules/data-access.mdc) → `.cursor/rules/`.
 
 ## See also
 

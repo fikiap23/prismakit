@@ -1,6 +1,7 @@
 import { runGenerate } from './commands/generate';
 import { runCodegen } from './commands/codegen';
 import { runValidate } from './commands/validate';
+import { runSkills } from './commands/skills';
 
 function printHelp(): void {
   console.log(`prismakit — PrismaKit CLI
@@ -9,6 +10,7 @@ Usage:
   prismakit generate <name> [--cache] [--full] [--helpers] [--dto] [--route <path>] [--prisma-import <path>] [--dry-run]
   prismakit codegen [--schema <path>] [--write] [--out <file>]
   prismakit validate [--no-assert]
+  prismakit skills [--global] [--with-rules] [--skill <name>] [--project <path>] [--list] [--dry-run]
   prismakit help
 
 By default, generate writes only the repository file.
@@ -20,6 +22,9 @@ Examples:
   prismakit generate product --cache --full --helpers --dto --route products
   prismakit codegen --write
   prismakit validate
+  prismakit skills
+  prismakit skills --global
+  prismakit skills --with-rules
 `);
 }
 
@@ -34,10 +39,12 @@ function parseArgs(argv: string[]): {
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
-    if (arg.startsWith('--')) {
+    if (arg === '-g') {
+      flags.global = true;
+    } else if (arg.startsWith('--')) {
       const key = arg.slice(2);
       const next = rest[i + 1];
-      if (next && !next.startsWith('--')) {
+      if (next && !next.startsWith('-')) {
         flags[key] = next;
         i++;
       } else {
@@ -92,6 +99,23 @@ function main(): void {
       case 'validate': {
         runValidate({
           assert: !flags['no-assert'],
+        });
+        break;
+      }
+      case 'skills':
+      case 'skill': {
+        const skillFlag = flags.skill;
+        runSkills({
+          global: !!flags.global,
+          withRules: !!flags['with-rules'],
+          dryRun: !!flags['dry-run'],
+          list: !!flags.list,
+          projectRoot:
+            typeof flags.project === 'string' ? flags.project : undefined,
+          skill:
+            typeof skillFlag === 'string'
+              ? skillFlag.split(',').map((s) => s.trim()).filter(Boolean)
+              : undefined,
         });
         break;
       }

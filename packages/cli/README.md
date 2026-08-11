@@ -47,6 +47,16 @@ npx prismakit codegen --write
 npx prismakit validate
 ```
 
+### `skills` — Cursor / agent skills
+
+```bash
+npx prismakit skills              # .cursor/skills in this app
+npx prismakit skills --global     # ~/.cursor/skills
+npx prismakit skills --with-rules
+```
+
+Also installable from GitHub: `npx skills add fikiap23/prismakit`.
+
 ## Docs
 
 - [Documentation index](https://github.com/fikiap23/prismakit/blob/master/docs/README.md)

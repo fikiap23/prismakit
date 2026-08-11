@@ -37,6 +37,7 @@ Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 pnpm add @prismakit/core @prismakit/nestjs @prismakit/redis
 # optional: pnpm add @prismakit/memory
 pnpm add -D @prismakit/eslint-plugin @prismakit/cli
+npx prismakit skills              # Cursor agent skills → .cursor/skills
 ```
 
 ```typescript
@@ -78,7 +79,7 @@ Full walkthrough: [Getting started](docs/getting-started.md).
 | CLI | [docs/reference/cli.md](docs/reference/cli.md) |
 | ESLint | [docs/reference/eslint.md](docs/reference/eslint.md) |
 | Rules (required) | [docs/RULES.md](docs/RULES.md) |
-| Cursor skills | [templates/cursor-skills/](templates/cursor-skills/) |
+| Cursor skills | [skills/](skills/) (`npx prismakit skills`) |
 
 **Forbidden:** inject `PrismaClient` / call `prisma.model.*` outside `repositories/`.
 

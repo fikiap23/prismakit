@@ -94,5 +94,6 @@ npx prismakit validate
 
 Cursor:
 
-- Agent skills: `templates/cursor-skills/` (`prismakit` + `prismakit-nestjs`). Install with `bash templates/cursor-skills/scripts/install.sh`.
-- Always-on rule: `templates/cursor-rules/data-access.mdc`.
+- Agent skills: [`skills/`](../skills/) (`prismakit` + `prismakit-nestjs`).
+- Install: `npx prismakit skills` (project) or `npx prismakit skills --global`. Ecosystem: `npx skills add fikiap23/prismakit`.
+- Always-on rule: `templates/cursor-rules/data-access.mdc` (`npx prismakit skills --with-rules`).

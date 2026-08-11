@@ -123,6 +123,22 @@ export default [prismakit.configs.recommended];
 
 This blocks `PrismaClient` / `prisma.model.*` outside `**/repositories/**`.
 
+## 5. Install agent skills (recommended)
+
+Same one-liner pattern as other large frameworks. Ships with `@prismakit/cli`:
+
+```bash
+npx prismakit skills              # commit .cursor/skills with the app
+npx prismakit skills --global     # all projects on this machine
+npx prismakit skills --with-rules # plus always-on .cursor/rules/data-access.mdc
+```
+
+Or, from GitHub via the skills CLI:
+
+```bash
+npx skills add fikiap23/prismakit
+```
+
 ## Next steps
 
 - [Repository methods](guide/repository.md)

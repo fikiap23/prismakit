@@ -1,0 +1,3 @@
+# Copied from repo-root skills/ + templates/cursor-rules/ during `pnpm build`
+/skills
+/rules

@@ -52,7 +52,7 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | [CLI](reference/cli.md) | `generate`, `codegen`, `validate` |
 | [ESLint plugin](reference/eslint.md) | Rules and flat config |
 | [AGENTS.md](AGENTS.md) | Short contract for humans and AI agents |
-| [Cursor skills](../templates/cursor-skills/) | Agent skills (`prismakit`, `prismakit-nestjs`) |
+| [Cursor skills](../skills/) | Agent skills — `npx prismakit skills` |
 
 ## Packages
 

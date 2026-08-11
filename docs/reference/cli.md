@@ -73,6 +73,33 @@ npx prismakit validate [--no-assert]
 
 Nest alternative: `PrismaKitModule.forRoot({ validateCompose: true })`.
 
+## `skills`
+
+Install PrismaKit agent skills into Cursor (and compatible clients).
+
+```bash
+npx prismakit skills [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| *(default)* | Write `prismakit` + `prismakit-nestjs` to `.cursor/skills/` |
+| `--global`, `-g` | Write to `~/.cursor/skills/` instead |
+| `--project <path>` | Project root (default `cwd`) |
+| `--skill <name>` | One skill, or comma-separated names |
+| `--with-rules` | Also copy `data-access.mdc` to `.cursor/rules/` |
+| `--list` | Print bundled skills; write nothing |
+| `--dry-run` | Print destinations; write nothing |
+
+Skills source: [`skills/`](../../skills/) in this repo, bundled into `@prismakit/cli` on publish.
+
+```bash
+npx prismakit skills
+npx prismakit skills --global --with-rules
+npx prismakit skills --skill prismakit-nestjs
+npx skills add fikiap23/prismakit
+```
+
 ## Help
 
 ```bash

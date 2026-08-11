@@ -23,6 +23,8 @@
   "files": [
     "dist",
     "src",
+    "skills",
+    "rules",
     "LICENSE",
     "README.md"
   ],
@@ -59,6 +61,8 @@
     "prisma",
     "cli",
     "codegen",
-    "prismakit"
+    "prismakit",
+    "cursor",
+    "skills"
   ]
 }
