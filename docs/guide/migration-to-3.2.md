@@ -35,6 +35,7 @@ const page = await repo.getManyCursor({
 
 ```bash
 pnpm add @prismakit/opentelemetry @opentelemetry/api
+# prefer @prismakit/opentelemetry@^3.2.1 (3.2.0 was a broken first publish)
 ```
 
 ```typescript
