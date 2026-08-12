@@ -84,11 +84,11 @@ await this.tx.execTx<User, Prisma.TransactionClient>(async (tx) => { /* ... */ }
 | `defineInjectableRepository({ model, select, create, update, where, orderBy, payload, ... })` | TypeMap unavailable. Package aliases: `defineRepository`. |
 | `createInjectableRepository({ model, ... })` | Thin / untyped. Results `unknown` unless `toPayload` is supplied. Alias: `createPrismaRepository`. |
 
-`createDefineRepo` runtime options: `model`, `scalarFields?`, `primaryKey?`, `cache?`, `lock?`, `schemaPath?`.
+`createDefineRepo` accepts app-wide defaults (`cache`, `schemaPath`) and per-repo options: `model`, `scalarFields?` (optional since 3.1), `primaryKey?`, `cache?` (`true` inherits app defaults), `lock?`, `schemaPath?`.
 
 When `cache` is set, the returned API includes `setCache` / `cacheTags` / `invalidate` / `tags` / `invalidateCache`. Otherwise those fields are omitted from the type (`HasCacheFromOptions`).
 
-`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `createMany`, `updateMany`, `upsert`, `deleteMany`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. `primaryKey` is optional — composite `@@id` is read from schema meta.
+`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `create`, `createMany`, `createManyAndReturn`, `update`, `updateById`, `updateMany`, `updateManyAndReturn`, `upsert`, `upsertMany`, `delete`, `deleteById`, `deleteMany`, `getThrowFirst`, `count`, `exists`, `aggregate`, `groupBy`, `getManyCursor`, `queryRaw`, `executeRaw`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. `primaryKey` is optional — composite `@@id` is read from schema meta.
 
 Export the instance type with interface merging so `cache` on options gates `setCache` (a same-name `type` alias collapses to `any`):
 
@@ -108,7 +108,7 @@ type Of<S> = S extends Prisma.UserSelect
 
 export const UserRepository = defineInjectableRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
+  scalarFields: Prisma.UserScalarFieldEnum, // required for this escape hatch (meta not typed)
   select: null! as Prisma.UserSelect,
   create: null! as Prisma.UserCreateInput,
   update: null! as Prisma.UserUpdateInput,
@@ -135,7 +135,7 @@ Prefer importing Nest-only APIs from `@prismakit/nestjs` and core-only helpers f
 src/
   app.module.ts                          # PrismaKitModule.forRootAsync
   infrastructure/prisma/
-    define-repo.ts                       # createDefineRepo<Prisma.TypeMap>()
+    define-app-repo.ts                   # createDefineRepo<Prisma.TypeMap>({ cache defaults })
     prisma.service.ts                    # client construction only
   modules/<feature>/
     <feature>.module.ts                  # providers: [Service, XRepository]

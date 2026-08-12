@@ -6,7 +6,7 @@ Copy-paste patterns for `@prismakit/core`. Contract: [SKILL.md](SKILL.md).
 
 ```typescript
 // src/modules/users/repositories/user.repository.ts
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client'; // or generated client path for Prisma 7
 import { createRepository } from '@prismakit/core';
 
 const DAY = 86_400;
@@ -23,7 +23,7 @@ export const userSelectPresets = {
 
 export const UserRepoClass = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
+  // scalarFields: optional when schemaPath/DMMF meta is loaded (default since 3.1)
   cache: {
     ttl: DAY,
     nullTtl: 60,
@@ -40,7 +40,7 @@ export type UserRepository = InstanceType<typeof UserRepoClass>;
 
 ```typescript
 // src/infrastructure/prisma/repos.ts
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'; // or generated client for Prisma 7
 import { RedisCacheAdapter } from '@prismakit/redis';
 import { UserRepoClass } from '../../modules/users/repositories/user.repository';
 

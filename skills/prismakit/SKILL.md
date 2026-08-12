@@ -32,7 +32,7 @@ Violations are bugs. Enforce with `@prismakit/eslint-plugin` + this skill.
 | Reads/writes | `*Repository` from `createRepository` / Nest factories |
 | Tx writes | `invalidate: 'none'` then `invalidateCache` after commit |
 | User-facing reads | `setCache: true` when the repo has cache config |
-| Relations in `select` | `model` + `scalarFields` or loaded Prisma meta |
+| Relations in `select` | `model` + Prisma meta loaded (or `scalarFields` when meta unavailable) |
 | ESLint | `prismakit.configs.recommended` |
 
 ## Layers
@@ -81,7 +81,7 @@ const cache = new RedisCacheAdapter({ prefix: 'myapp' });
 export const users = new UserRepoClass({ prisma, cache });
 ```
 
-`defineRepository` and `createPrismaRepository` are aliases of `createRepository`.
+`defineRepository` is an alias of `createRepository` in core. Note: `createPrismaRepository` is also an alias in core, but in `@prismakit/nestjs` it aliases `createInjectableRepository` instead — avoid using it to prevent confusion.
 
 **NestJS apps:** use `createDefineRepo` / `defineAppRepo` with app-wide cache defaults instead — see skill `prismakit-nestjs`.
 
@@ -123,7 +123,8 @@ await users.getFirst({
 | `getMany` | array (`take` / `skip` / `orderBy`) |
 | `getManyPaginate` | `{ data, meta: { page, pageSize, totalItems, totalPages } }` |
 | `getManyCursor` | `{ data, nextCursor, hasMore }` |
-| `count` / `exists` | `{ count }` / `{ exists }` |
+| `getThrowFirst` | first match; throws if missing |
+| `count` / `exists` | `number` / `boolean` |
 | `aggregate` / `groupBy` | Prisma delegate results |
 
 `id` is `string` or `Record<string, string>` for composite PKs (object form for `@@id([a,b])`).
@@ -134,8 +135,11 @@ await users.getFirst({
 
 | Method | Default `invalidate` |
 |--------|----------------------|
-| `create` / `createMany` | `queries` |
-| `updateById` / `updateMany` / `upsert` / `deleteById` / `deleteMany` | `all` |
+| `create` / `createMany` / `createManyAndReturn` | `queries` |
+| `updateById` / `update` / `updateMany` / `updateManyAndReturn` | `all` |
+| `upsert` / `upsertMany` | `all` |
+| `deleteById` / `delete` / `deleteMany` | `all` |
+| `queryRaw` / `executeRaw` | none (raw SQL — no cache) |
 
 ```typescript
 await users.updateById({
@@ -240,8 +244,9 @@ Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules
 
 ## Observability
 
-- Core: `setTelemetry({ enabled, onEvent })` or Nest `telemetry` / `queryLog.slowThreshold`.
+- Core: `setTelemetry({ enabled, onEvent, slowThreshold })` or Nest `telemetry` / `queryLog.slowThreshold`.
 - Optional: `@prismakit/opentelemetry` → `createPrismaKitTelemetry({ slowThreshold })`.
+- Events: `cache.hit` / `cache.miss` / `cache.bypass` / `cache.invalidate` / `cache.error`, `compose.*`, `lock.*`, `stampede.*`, `query.complete` / `query.slow`.
 
 ## Clean code
 

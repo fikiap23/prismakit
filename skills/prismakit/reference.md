@@ -29,7 +29,7 @@ pnpm add -D @prismakit/eslint-plugin @prismakit/cli
 createRepository(options) → new RepoClass(deps: RepositoryDeps)
 ```
 
-Aliases: `defineRepository`, `createPrismaRepository`.
+Alias: `defineRepository`. (`createPrismaRepository` is also an alias in core but maps to `createInjectableRepository` in `@prismakit/nestjs` — avoid it to prevent confusion.)
 
 `RepositoryDeps`: `{ prisma, cache?, registry?, autoCompose? }`.
 
@@ -58,12 +58,13 @@ All methods accept optional `tx`. Cached repos also accept cache fields (see bel
 |--------|------------|---------|
 | `getById` | `id`, `select?`, `lock?`, `setCache?` | `T \| null` |
 | `getThrowById` | same | `T` (throws if missing) |
-| `getFirst` | `where?`, `select?`, `lock?`, `setCache?`, `cacheTags?` | `T \| null` |
+| `getFirst` | `where?`, `select?`, `lock?`, `setCache?`, `cacheTags?`, `orderBy?` | `T \| null` |
+| `getThrowFirst` | same as `getFirst` | `T` (throws if missing) |
 | `getMany` | `where?`, `select?`, `orderBy?`, `take?`, `skip?`, `lock?`, `setCache?`, `cacheTags?` | `T[]` |
 | `getManyPaginate` | `where?`, `select?`, `orderBy?`, `page?`, `pageSize?`, `setCache?`, `cacheTags?` | `PaginatedResult<T>` |
 | `getManyCursor` | `where?`, `select?`, `orderBy?`, `cursor?`, `take?`, `skip?`, `setCache?`, `cacheTags?` | `CursorPage<T>`; with `cursor`, default `skip: 1` |
-| `count` | `where?`, `select?`, `setCache?`, `cacheTags?` | `{ count: number }` |
-| `exists` | `where?`, `setCache?`, `cacheTags?` | `{ exists: boolean }` |
+| `count` | `where?`, `setCache?`, `cacheTags?` | `number` |
+| `exists` | `where?`, `setCache?`, `cacheTags?` | `boolean` |
 | `aggregate` | Prisma aggregate args + `setCache?`, `cacheTags?` | delegate result |
 | `groupBy` | Prisma groupBy args + `setCache?`, `cacheTags?` | delegate result |
 
@@ -86,6 +87,13 @@ All methods accept optional `tx`. Cached repos also accept cache fields (see bel
 | `upsert` | `where`, `create`, `update`, `select?`, `invalidate?`, `tags?` | `all` | `T` |
 | `deleteById` | `id`, `select?`, `invalidate?`, `tags?` | `all` | `T` |
 | `deleteMany` | `where`, `invalidate?`, `tags?` | `all` | `{ count }` |
+| `update` | `where`, `data`, `select?`, `invalidate?`, `tags?` | `all` | `T` |
+| `delete` | `where`, `select?`, `invalidate?`, `tags?` | `all` | `T` |
+| `createManyAndReturn` | `data[]`, `select?`, `skipDuplicates?`, `invalidate?`, `tags?` | `queries` | `T[]` |
+| `updateManyAndReturn` | `where`, `data`, `select?`, `invalidate?`, `tags?` | `all` | `T[]` |
+| `upsertMany` | `data[]`, `skipDuplicates?`, `invalidate?`, `tags?` | `all` | `{ count }` |
+| `queryRaw` | `sql`, `...params` | — | raw result |
+| `executeRaw` | `sql`, `...params` | — | `number` (affected rows) |
 
 Mutation `tags`: `string[] | null | undefined | ((result) => string[] | null | undefined)`.
 
@@ -112,7 +120,7 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 | `ttl` | `86400` | Entity TTL (seconds). |
 | `nullTtl` | — | Negative cache for null results. |
 | `sensitiveFields` | `['password']` | Selects containing these never cache. |
-| `methods` | — | Per-method `{ enabled?, ttl? }` for `getById`, `getThrowById`, `getFirst`, `getMany`, `getManyPaginate`. |
+| `methods` | — | Per-method `{ enabled?, ttl? }` for `getById`, `getThrowById`, `getFirst`, `getThrowFirst`, `getMany`, `getManyPaginate`, `getManyCursor`, `count`, `exists`, `aggregate`, `groupBy`. |
 | `defaultSetCache` | `false` | Reads cache unless caller passes `setCache: false`. |
 | `stampede` | see below | Per-repo stampede overrides. |
 | `compression` | — | Hint for adapters (`'none' \| 'zstd' \| 'lz4'`). Redis adapter uses `'none' \| 'gzip'`. |
@@ -237,12 +245,13 @@ import { setTelemetry } from '@prismakit/core';
 setTelemetry({
   enabled: true,
   onEvent: (event) => { /* metrics */ },
+  slowThreshold: 500, // emits query.slow for queries ≥ this ms
 });
 ```
 
 | Type | When |
 |------|------|
-| `cache.hit` / `cache.miss` / `cache.bypass` / `cache.invalidate` | Cache-aside path |
+| `cache.hit` / `cache.miss` / `cache.bypass` / `cache.invalidate` / `cache.error` | Cache-aside path |
 | `compose.start` / `compose.complete` | Auto-compose (`queryCount`, `durationMs`) |
 | `lock.acquired` / `lock.waited` / `lock.timeout` | Row locks |
 | `stampede.locked` / `stampede.waited` / `stampede.fallthrough` | Stampede protection |
@@ -312,7 +321,6 @@ const autoCompose = new AutoComposer(registry);
 
 const UserRepo = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86_400 },
 });
 const users = new UserRepo({ prisma, cache, registry, autoCompose });

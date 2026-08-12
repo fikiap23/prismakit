@@ -23,7 +23,6 @@ pnpm add -D @prismakit/eslint-plugin @prismakit/cli
 import { Module } from '@nestjs/common';
 import { PrismaKitModule } from '@prismakit/nestjs';
 import { RedisCacheAdapter } from '@prismakit/redis';
-import { Prisma } from '@prisma/client';
 
 @Module({
   imports: [
@@ -244,7 +243,7 @@ Reference app: [starter-prismakit-nestjs](https://github.com/fikiap23/starter-pr
 
 ## Clean code (Nest)
 
-- One `defineRepo` binder under `src/infrastructure/prisma/`. Do not call `createDefineRepo` per feature.
+- One `defineAppRepo` binder under `src/infrastructure/prisma/`. Do not call `createDefineRepo` per feature.
 - Feature modules own their repository providers; do not make every repo global.
 - Controllers stay HTTP-only: map DTO → service method. No repository calls in controllers.
 - Select presets live next to the repository (`minimal` / `general` / `withPassword`).

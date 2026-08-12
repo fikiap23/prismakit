@@ -47,24 +47,30 @@ export class AppModule {}
 
 Prisma 5/6: pass `dmmf: Prisma.dmmf` instead of (or in addition to skipping) `schemaPath`. Prisma 7: `schemaPath` only.
 
-## 2. TypeMap binder
+## 2. TypeMap binder with app-wide cache defaults
 
 ```typescript
-// src/infrastructure/prisma/define-repo.ts
+// src/infrastructure/prisma/define-app-repo.ts
 import { createDefineRepo } from '@prismakit/nestjs';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from 'src/infrastructure/prisma/prisma-client';
 
-export const defineRepo = createDefineRepo<Prisma.TypeMap>();
+const DAY = 86_400;
+
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: {
+    ttl: DAY,
+    nullTtl: 60,
+    defaultSetCache: true,
+  },
+});
 ```
 
 ## 3. Feature repository + select presets
 
 ```typescript
 // src/modules/users/repositories/user.repository.ts
-import { Prisma } from '@prisma/client';
-import { defineRepo } from '../../../infrastructure/prisma/define-repo';
-
-const DAY = 86_400;
+import { Prisma } from 'src/infrastructure/prisma/prisma-client';
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
 
 export const userSelectPresets = {
   minimal: { id: true } satisfies Prisma.UserSelect,
@@ -80,18 +86,24 @@ export const userSelectPresets = {
   } satisfies Prisma.UserSelect,
 };
 
-export const UserRepository = defineRepo({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: {
-    ttl: DAY,
-    nullTtl: 60,
+    defaultSetCache: false,       // auth lookups pass setCache explicitly
     sensitiveFields: ['password'],
     methods: { getFirst: { enabled: false } },
   },
-  lock: true,
-});
-export interface UserRepository extends InstanceType<typeof UserRepository> {}
+}) {}
+```
+
+```typescript
+// Simple cached repo — inherits app-wide defaults
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
+
+export class CategoryRepository extends defineAppRepo({
+  model: 'category',
+  cache: true,
+}) {}
 ```
 
 ## 4. Feature module + thin controller + service
