@@ -45,37 +45,65 @@ export class AppModule {}
 
 ## Factory (one default)
 
-Bind `Prisma.TypeMap` once, then define repos with runtime options only.
+Bind `Prisma.TypeMap` once with app-wide cache defaults, then define repos with per-model overrides only.
 
 ```typescript
-// src/infrastructure/prisma/define-repo.ts
+// src/infrastructure/prisma/define-app-repo.ts
 import { createDefineRepo } from '@prismakit/nestjs';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client'; // or generated client path
 
-export const defineRepo = createDefineRepo<Prisma.TypeMap>();
+const DAY = 86_400;
+
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: {
+    ttl: DAY,
+    nullTtl: 60,
+    defaultSetCache: true,
+  },
+});
 ```
 
 ```typescript
 // src/modules/users/repositories/user.repository.ts
-import { Prisma } from '@prisma/client';
-import { defineRepo } from '../../../infrastructure/prisma/define-repo';
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
 
-const DAY = 86_400;
-
-export class UserRepository extends defineRepo({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
-  cache: { ttl: DAY, nullTtl: 60, sensitiveFields: ['password'] },
-  lock: true,
+  cache: {
+    defaultSetCache: false,       // auth lookups pass setCache explicitly
+    sensitiveFields: ['password'],
+    methods: { getFirst: { enabled: false } },
+  },
 }) {}
 ```
+
+```typescript
+// src/modules/category/repositories/category.repository.ts
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
+
+export class CategoryRepository extends defineAppRepo({
+  model: 'category',
+  cache: true, // inherits app-wide defaults (ttl, nullTtl, defaultSetCache)
+}) {}
+```
+
+```typescript
+// Uncached repo — TypeScript omits setCache / invalidateCache
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
+
+export class AuditLogRepository extends defineAppRepo({
+  model: 'auditLog',
+}) {}
+```
+
+`scalarFields` is **optional** when `schemaPath` or DMMF meta is loaded (default since 3.1). Omit it in new repos.
 
 Escape hatches (do not use as the app default):
 
 - `defineInjectableRepository` from `@prismakit/nestjs` (package alias `defineRepository`) — phantoms + payload HKT when TypeMap is unavailable.
 - `createInjectableRepository` without a types bag — thin, results are `unknown`. Alias: `createPrismaRepository`.
 
-Do not import `defineRepo` from `@prismakit/nestjs` in apps that already bind `createDefineRepo` as `defineRepo`.
+Do not import `defineRepo` from `@prismakit/nestjs` in apps that already bind `createDefineRepo` as `defineAppRepo`.
 
 ## Register and inject
 

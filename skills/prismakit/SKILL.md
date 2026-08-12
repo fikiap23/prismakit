@@ -64,7 +64,7 @@ Helpers may inject repositories — never the Prisma client.
 ## Create a repository (core)
 
 ```typescript
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { createRepository } from '@prismakit/core';
 import { RedisCacheAdapter } from '@prismakit/redis';
 
@@ -72,9 +72,8 @@ const DAY = 86_400;
 
 const UserRepoClass = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: DAY, nullTtl: 60, sensitiveFields: ['password'] },
-  lock: true, // table + columns from Prisma meta
+  lock: true, // table + columns resolved from Prisma schema meta
 });
 
 const prisma = new PrismaClient();
@@ -84,14 +83,16 @@ export const users = new UserRepoClass({ prisma, cache });
 
 `defineRepository` and `createPrismaRepository` are aliases of `createRepository`.
 
+**NestJS apps:** use `createDefineRepo` / `defineAppRepo` with app-wide cache defaults instead — see skill `prismakit-nestjs`.
+
 | Option | Description |
 |--------|-------------|
 | `model` | Prisma client key (`prisma.user` → `'user'`). Needed for cache + compose. |
-| `scalarFields` | Usually `Prisma.XScalarFieldEnum`. Enables select-split + compose. Optional if DMMF/schema meta is loaded. |
-| `cache` | `CacheOptions` or `true` → `{ ttl: 86400, sensitiveFields: ['password'] }`. |
+| `scalarFields` | Usually `Prisma.XScalarFieldEnum`. **Optional** when `schemaPath` / DMMF meta is loaded (default since 3.1). |
+| `cache` | `CacheOptions` or `true` (uses app defaults when bound via `createDefineRepo`). |
 | `lock` | `true` / client key / `@@map` table / `{ tableName, columns }`. |
 | `primaryKey` | Override only. Defaults to schema `@id` / `@@id` (composite `string[]`) or `id`. |
-| `schemaPath` | Path to `schema.prisma` when meta is not loaded globally. |
+| `schemaPath` | Path to `schema.prisma` when meta is not loaded globally. Default: `prisma/schema.prisma`. |
 | `getDelegate` | Optional. Defaults to `(c) => c[model]`. |
 
 Put files under `**/repositories/**`. Keep Prisma client construction under `**/infrastructure/prisma/**`.
