@@ -1,5 +1,40 @@
 # @prismakit/nestjs
 
+
+## 3.1.0
+
+### Minor Changes
+
+- Production hardening: full Prisma method parity, typed errors, Redis Date/Decimal/Bytes codec, atomic tag invalidation, lock provider guard, defineAppRepo model autocomplete + cache defaults, cache key v2.
+
+## 3.0.10
+
+### Patch Changes
+
+- `strictCachedRepos` no longer treats `src/modules` and `build/compile/src/modules` as duplicate providers (same module, source vs compiled).
+
+## 3.0.9
+
+### Patch Changes
+
+- `strictCachedRepos` scans `*.module.ts` at boot and throws if the same repository class appears in two `providers` arrays — does not rely on Nest instance identity or ESLint.
+
+## 3.0.8
+
+### Patch Changes
+
+- `strictCachedRepos` also fails boot when the same repository model is constructed in more than one Nest module (`providers` duplicated instead of `imports` + `exports`).
+
+## 3.0.7
+
+### Patch Changes
+
+- Fail application bootstrap when a repository class has `cache` in source but is not a Nest `providers` entry (`strictCachedRepos`, default `true`). Prevents `autoRegisterModels` from silently installing an uncached stub. Set `strictCachedRepos: false` to opt out.
+
+## 3.0.6
+
+Yanked — published with `workspace:*` dependency protocol. Use 3.0.7.
+
 ## 3.0.5
 
 ### Patch Changes

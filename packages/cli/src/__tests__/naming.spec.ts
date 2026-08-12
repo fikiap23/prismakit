@@ -22,7 +22,8 @@ describe('cli generate templates', () => {
     expect(files[0].content).toContain("model: 'product'");
     expect(files[0].content).toContain('cache: {');
     expect(files[0].content).not.toContain('getDelegate');
-    expect(files[0].content).toContain("from '@prisma/client'");
+    expect(files[0].content).not.toContain('scalarFields');
+    expect(files[0].content).toContain("from '@prismakit/nestjs'");
   });
 
   it('emits full Nest module when full: true', () => {

@@ -9,6 +9,10 @@ export {
   redisJsonStringify,
   redisJsonReplacer,
   redisJsonReviver,
+  createRedisJsonReviver,
+  cloneWithCodec,
+  type DecimalFactory,
+  type RedisJsonOptions,
 } from './redis-json';
 
 /** Re-export cache debug helpers from core — do not duplicate. */

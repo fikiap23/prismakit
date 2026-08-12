@@ -19,9 +19,12 @@ Everything that touches Prisma goes through a repository from `createRepository`
 | `getById` / `getThrowById` | `findUnique` / `findUniqueOrThrow` |
 | `getFirst` / `getMany` | `findFirst` / `findMany` |
 | `getManyPaginate` | paginator over `findMany` |
+| `getManyCursor` | cursor / keyset pagination |
+| `count` / `exists` | `count` / `count({ take: 1 })` |
+| `aggregate` / `groupBy` | `aggregate` / `groupBy` |
 | `create` / `createMany` | `create` / `createMany` |
 | `updateById` / `updateMany` | `update` / `updateMany` |
-| `deleteById` | `delete` |
+| `deleteById` / `deleteMany` | `delete` / `deleteMany` |
 | `invalidateCache` | manual post-tx invalidation |
 
 Reads accept `select`, optional `tx`, and optional `setCache`. Writes accept `invalidate` (`'all' \| 'entity' \| 'queries' \| 'none'`).

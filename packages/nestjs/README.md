@@ -50,6 +50,7 @@ Register `UserRepository` in a feature module `providers`.
 | `cache` | Optional `CacheAdapter` |
 | `cacheModels` | Optional extra allowlist (omit — repo `cache` is enough) |
 | `validateCompose` | Run compose validation on boot |
+| `strictCachedRepos` | Fail boot if a cached repo is missing from `providers`, or listed in two modules (scans source; default `true`) |
 | `schemaPath` | Path to `schema.prisma` for lock helpers |
 
 Also supports `PrismaKitModule.forRootAsync`.

@@ -29,6 +29,8 @@ export class AppModule {}
 | `cacheModels` | no | Optional extra allowlist. Omit — repo `cache` is the source of truth |
 | `schemaPath` | no | Path to `prisma/schema.prisma` for lock helpers |
 | `validateCompose` | no | When `true`, run compose validation on module init |
+| `strictCachedRepos` | no | Fail boot when a `cache` repo is missing from `providers`, or listed in two modules (default `true`) |
+| `modulesRoot` | no | Directory scanned by `strictCachedRepos` (default `src/modules`) |
 
 ### Async config
 
@@ -59,7 +61,7 @@ export const ProductRepository = createInjectableRepository({
 });
 ```
 
-Register the returned class in a feature module `providers`. Never inject `prisma` into services.
+Register the returned class in a feature module `providers`. Never inject `prisma` into services. If `cache` is set on the class but it is omitted from `providers`, Nest boot throws (`strictCachedRepos`).
 
 When `cache` is set on the repository options, TypeScript exposes `setCache` / `cacheTags` on reads and invalidation fields on writes. Without `cache`, those options are omitted from the type (see [Cache](./cache.md#typescript-dx)).
 

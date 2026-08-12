@@ -1,5 +1,30 @@
 # @prismakit/eslint-plugin
 
+
+## 3.1.0
+
+### Minor Changes
+
+- Production hardening: full Prisma method parity, typed errors, Redis Date/Decimal/Bytes codec, atomic tag invalidation, lock provider guard, defineAppRepo model autocomplete + cache defaults, cache key v2.
+
+## 3.0.9
+
+### Patch Changes
+
+- `require-cached-repo-provider` errors when the same repository class appears in more than one module `providers` array (duplicate Nest instances).
+
+## 3.0.8
+
+### Patch Changes
+
+- `require-cached-repo-provider` accepts a cached class listed in **any** Nest `*.module.ts` `providers` array, not only ancestor modules of the repository file.
+
+## 3.0.7
+
+### Patch Changes
+
+- `require-cached-repo-provider` also flags the feature `*.module.ts` `providers` array when a sibling `repositories/` class has `cache` but is not registered.
+
 ## 3.0.6
 
 ### Patch Changes

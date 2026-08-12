@@ -15,6 +15,7 @@ export type PrismaOperationPayloadLike = {
 };
 
 export type PrismaTypeMapLike = {
+  meta?: { modelProps?: string };
   model: {
     [key: string]: {
       payload: PrismaOperationPayloadLike;
@@ -107,6 +108,64 @@ export type TypeMapWhereUniqueInput<
   ? W
   : TypeMapWhereInput<TTypeMap, TModel>;
 
+/** Args for `count` (includes optional `_count` / `_avg` select). */
+export type TypeMapCountArgs<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'count'>;
+
+/** Args for `aggregate`. */
+export type TypeMapAggregateArgs<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'aggregate'>;
+
+/** Result of `aggregate`. */
+export type TypeMapAggregateResult<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = OpsOf<TTypeMap, TModel> extends { aggregate: { result: infer R } }
+  ? R
+  : unknown;
+
+/** Args for `groupBy`. */
+export type TypeMapGroupByArgs<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'groupBy'>;
+
+/** Result element of `groupBy`. */
+export type TypeMapGroupByResult<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = OpsOf<TTypeMap, TModel> extends { groupBy: { result: infer R } }
+  ? R
+  : unknown;
+
+/** Cursor from `findMany` args. */
+export type TypeMapCursor<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'findMany'> extends { cursor?: infer C }
+  ? C
+  : unknown;
+
+/** Element type of `createManyAndReturn` `data`. */
+export type TypeMapCreateManyAndReturnInput<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'createManyAndReturn'> extends {
+  data?: infer D;
+}
+  ? Unarray<NonNullable<D>>
+  : TypeMapCreateManyInput<TTypeMap, TModel>;
+
+/** Args for `updateManyAndReturn`. */
+export type TypeMapUpdateManyAndReturnArgs<
+  TTypeMap extends PrismaTypeMapLike,
+  TModel extends keyof TTypeMap['model'],
+> = TypeMapArgs<TTypeMap, TModel, 'updateManyAndReturn'>;
+
 type PayloadScalars<P> = P extends { scalars: infer S } ? S : never;
 type PayloadObjects<P> = P extends { objects: infer O } ? O : never;
 
@@ -168,4 +227,9 @@ export type TypeMapGetPayload<
 /** Capitalize first letter: `auditLog` → `AuditLog`. */
 export type CamelToPascal<S extends string> = S extends `${infer F}${infer R}`
   ? `${Uppercase<F>}${R}`
+  : S;
+
+/** Lowercase first letter: `AuditLog` → `auditLog`. */
+export type PascalToCamel<S extends string> = S extends `${infer F}${infer R}`
+  ? `${Lowercase<F>}${R}`
   : S;

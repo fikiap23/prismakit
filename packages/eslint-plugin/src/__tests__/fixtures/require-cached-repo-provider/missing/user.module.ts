@@ -1,7 +1,5 @@
-import { Module } from '@nestjs/common';
 import { ProfileRepository } from './repositories/profile.repository';
 
-@Module({
+export const UserModule = {
   providers: [UserService],
-})
-export class UserModule {}
+};

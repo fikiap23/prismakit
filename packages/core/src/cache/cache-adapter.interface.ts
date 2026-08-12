@@ -24,6 +24,12 @@ export interface CacheAdapter {
   isReady(): boolean;
   getPrefix(): string;
 
+  /**
+   * Optional hook fired when a safe* wrapper swallows an error.
+   * Core wires this to `emitTelemetry({ type: 'cache.error' })`.
+   */
+  onError?: (err: unknown, op?: string) => void;
+
   // safe wrappers (fail-open)
   safeGet<T>(key: string): Promise<T | null>;
   safeSet(key: string, value: unknown, ttlSeconds: number): Promise<void>;

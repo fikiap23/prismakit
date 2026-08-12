@@ -7,14 +7,19 @@
 export type PrismaModelDelegate = {
   create: (args: any) => Promise<unknown>;
   createMany?: (args: any) => Promise<{ count: number }>;
+  createManyAndReturn?: (args: any) => Promise<unknown[]>;
   findUnique: (args: any) => Promise<unknown | null>;
   findUniqueOrThrow: (args: any) => Promise<unknown>;
   findFirst: (args: any) => Promise<unknown | null>;
+  findFirstOrThrow: (args: any) => Promise<unknown>;
   findMany: (args: any) => Promise<unknown[]>;
   update: (args: any) => Promise<unknown>;
   updateMany?: (args: any) => Promise<{ count: number }>;
+  updateManyAndReturn?: (args: any) => Promise<unknown[]>;
   upsert?: (args: any) => Promise<unknown>;
   delete: (args: any) => Promise<unknown>;
   deleteMany?: (args: any) => Promise<{ count: number }>;
   count: (args: any) => Promise<number>;
+  aggregate?: (args: any) => Promise<unknown>;
+  groupBy?: (args: any) => Promise<unknown[]>;
 };

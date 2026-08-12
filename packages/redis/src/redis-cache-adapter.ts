@@ -1,7 +1,12 @@
 import Redis from 'ioredis';
 import { gzipSync, gunzipSync } from 'zlib';
 import type { CacheAdapter } from '@prismakit/core';
-import { redisJsonParse, redisJsonStringify } from './redis-json';
+import {
+  redisJsonParse,
+  redisJsonStringify,
+  type DecimalFactory,
+  type RedisJsonOptions,
+} from './redis-json';
 
 const INDEX_TTL_BUFFER = 60;
 
@@ -29,6 +34,13 @@ export type RedisCacheAdapterOptions = {
   compression?: RedisCompression;
   /** Minimum payload size (bytes) before compression (default 1024). */
   compressionThresholdBytes?: number;
+  /**
+   * Reconstruct Prisma Decimal from tagged cache payloads.
+   * @example decimalFactory: (s) => new Prisma.Decimal(s)
+   */
+  decimalFactory?: DecimalFactory;
+  /** Optional error hook for safe* wrappers (also used by telemetry). */
+  onError?: (err: unknown, op?: string) => void;
 };
 
 const COMPRESSED_PREFIX = 'gz:';
@@ -42,6 +54,8 @@ export class RedisCacheAdapter implements CacheAdapter {
   private ready = false;
   private readonly compression: RedisCompression;
   private readonly compressionThreshold: number;
+  private readonly jsonOptions: RedisJsonOptions;
+  onError?: (err: unknown, op?: string) => void;
 
   constructor(options: RedisCacheAdapterOptions = {}) {
     const {
@@ -51,11 +65,15 @@ export class RedisCacheAdapter implements CacheAdapter {
       prefix = 'prismakit',
       compression = 'none',
       compressionThresholdBytes = 1024,
+      decimalFactory,
+      onError,
     } = options;
 
     this.prefix = prefix;
     this.compression = compression;
     this.compressionThreshold = compressionThresholdBytes;
+    this.jsonOptions = { decimalFactory };
+    this.onError = onError;
     this.client = url
       ? new Redis(url, { lazyConnect: true })
       : new Redis({ host, port, lazyConnect: true });
@@ -74,6 +92,18 @@ export class RedisCacheAdapter implements CacheAdapter {
     void this.connect();
   }
 
+  private report(op: string, err: unknown): void {
+    console.warn(
+      `[RedisCacheAdapter] ${op} failed`,
+      (err as Error)?.message ?? err,
+    );
+    try {
+      this.onError?.(err, op);
+    } catch {
+      /* ignore hook errors */
+    }
+  }
+
   async connect(): Promise<void> {
     if (this.client.status === 'ready' || this.client.status === 'connecting') {
       return;
@@ -81,10 +111,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.client.connect();
     } catch (err) {
-      console.warn(
-        '[RedisCacheAdapter] failed to connect',
-        (err as Error).message,
-      );
+      this.report('connect', err);
     }
   }
 
@@ -117,12 +144,10 @@ export class RedisCacheAdapter implements CacheAdapter {
     if (raw.startsWith(COMPRESSED_PREFIX)) {
       const buf = Buffer.from(raw.slice(COMPRESSED_PREFIX.length), 'base64');
       const json = gunzipSync(buf).toString('utf8');
-      return redisJsonParse<T>(json);
+      return redisJsonParse<T>(json, this.jsonOptions);
     }
-    return redisJsonParse<T>(raw);
+    return redisJsonParse<T>(raw, this.jsonOptions);
   }
-
-  // --- low-level ops (may throw) ---
 
   async get<T>(key: string): Promise<T | null> {
     const raw = await this.client.get(key);
@@ -153,10 +178,6 @@ export class RedisCacheAdapter implements CacheAdapter {
     return result === 'OK';
   }
 
-  /**
-   * Atomically SET a cache key + SADD into an index SET + EXPIRE the index
-   * via a single Redis pipeline.
-   */
   async setWithIndex(
     key: string,
     value: unknown,
@@ -170,9 +191,6 @@ export class RedisCacheAdapter implements CacheAdapter {
     await pipeline.exec();
   }
 
-  /**
-   * Atomic invalidation via Lua (SMEMBERS + DEL members + DEL index).
-   */
   async invalidateByIndex(indexKey: string): Promise<void> {
     await this.client.eval(INVALIDATE_BY_INDEX_LUA, 1, indexKey);
   }
@@ -189,16 +207,11 @@ export class RedisCacheAdapter implements CacheAdapter {
     await pipeline.exec();
   }
 
-  // --- safe wrappers (never throw — warn + return fallback) ---
-
   async safeGet<T>(key: string): Promise<T | null> {
     try {
       return await this.get<T>(key);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeGet failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeGet key=${key}`, err);
       return null;
     }
   }
@@ -211,10 +224,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.set(key, value, ttlSeconds);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeSet failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeSet key=${key}`, err);
     }
   }
 
@@ -222,10 +232,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.del(...keys);
     } catch (err) {
-      console.warn(
-        '[RedisCacheAdapter] safeDel failed',
-        (err as Error).message,
-      );
+      this.report('safeDel', err);
     }
   }
 
@@ -233,10 +240,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       return await this.setNx(key, ttlSeconds);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeSetNx failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeSetNx key=${key}`, err);
       return false;
     }
   }
@@ -250,10 +254,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.setWithIndex(key, value, ttlSeconds, indexKey);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeSetWithIndex failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeSetWithIndex key=${key}`, err);
     }
   }
 
@@ -261,10 +262,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.invalidateByIndex(indexKey);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeInvalidateByIndex failed for idx=${indexKey}`,
-        (err as Error).message,
-      );
+      this.report(`safeInvalidateByIndex idx=${indexKey}`, err);
     }
   }
 
@@ -276,10 +274,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       await this.saddAndExpire(key, members, ttlSeconds);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeSaddAndExpire failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeSaddAndExpire key=${key}`, err);
     }
   }
 
@@ -287,10 +282,7 @@ export class RedisCacheAdapter implements CacheAdapter {
     try {
       return await this.smembers(key);
     } catch (err) {
-      console.warn(
-        `[RedisCacheAdapter] safeSmembers failed for key=${key}`,
-        (err as Error).message,
-      );
+      this.report(`safeSmembers key=${key}`, err);
       return [];
     }
   }

@@ -169,11 +169,15 @@ const cache = new RedisCacheAdapter({
 
 ## Key schema
 
+Keys include a version segment (`v2`) so codec changes invalidate legacy entries safely:
+
 ```
-{prefix}:repo:{model}:e:{id}:{method}:{selectHash}
-{prefix}:repo:{model}:q:{method}:{queryHash}
-{prefix}:repo:{model}:t:{tag}:__idx
+{prefix}:v2:repo:{model}:e:{id}:{method}:{selectHash}
+{prefix}:v2:repo:{model}:q:{method}:{queryHash}
+{prefix}:v2:repo:{model}:t:{tag}:__idx
 ```
+
+The Redis adapter serializes `Date`, `BigInt`, `Bytes`, and Prisma `Decimal` via tagged JSON (`__date`, `__bigint`, etc.). After upgrading to 3.1, expect a one-time cache miss while v2 keys repopulate.
 
 ## Debug
 

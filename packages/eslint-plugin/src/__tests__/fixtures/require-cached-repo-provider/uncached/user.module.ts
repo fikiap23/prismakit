@@ -1,6 +1,3 @@
-import { Module } from '@nestjs/common';
-
-@Module({
+export const UserModule = {
   providers: [],
-})
-export class UserModule {}
+};

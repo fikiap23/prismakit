@@ -7,3 +7,9 @@ export interface PaginatedResult<T> {
     totalPages: number;
   };
 }
+
+export type CursorPage<T> = {
+  data: T[];
+  nextCursor: unknown | null;
+  hasMore: boolean;
+};

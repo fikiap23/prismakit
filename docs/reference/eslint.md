@@ -84,6 +84,8 @@ Use `TransactionService` from `@prismakit/nestjs`.
 
 A repository with `cache` must appear in some Nest module `providers: [...]`. Otherwise Nest never constructs it and `autoRegisterModels` installs an **uncached** stub — the `cache` block is a no-op.
 
+The rule reports on **both** the repository class and the feature `*.module.ts` `providers` array (sibling `repositories/` with `cache` not listed in **any** Nest module under the project). Registering the class in another feature module is valid. Listing the same class in **two** `providers` arrays is an error (Nest would construct a second instance). Other modules that only *inject* the repo should `imports: [UserModule]` + `exports`.
+
 Compose-only stubs (no `cache`) are allowed to stay out of `providers`.
 
 ```typescript

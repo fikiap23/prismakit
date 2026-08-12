@@ -23,7 +23,7 @@ These rules are the data-access contract for PrismaKit apps.
 | Tx writes | `invalidate: 'none'` then `invalidateCache` in `afterCommit` |
 | User-facing reads | `setCache: true` when repo has cache config |
 | Relations in select | `model` on source repo; load `dmmf: Prisma.dmmf` (or pass `scalarFields`) — [auto-compose](guide/auto-compose.md) |
-| Cached repository classes | Nest `providers` of a feature module (`autoRegisterModels` stubs are uncached) |
+| Cached repository classes | Nest `providers` of a feature module. Missing provider → boot fail (`strictCachedRepos`) and ESLint `require-cached-repo-provider`. `autoRegisterModels` stubs are uncached. |
 | ESLint | `prismakit.configs.recommended` |
 
 ## Layers

@@ -50,12 +50,10 @@ function renderRepository(
     : '';
 
   const content = apply(
-    `import { Prisma } from '{{prismaImport}}';
-import { createInjectableRepository } from '@prismakit/nestjs';
+    `import { createInjectableRepository } from '@prismakit/nestjs';
 
 export class {{pascal}}Repository extends createInjectableRepository({
   model: '{{repoModel}}',
-  scalarFields: Prisma.{{pascal}}ScalarFieldEnum,
 {{cacheBlock}}}) {}
 `,
     names,

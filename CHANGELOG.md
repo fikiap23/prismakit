@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Per-package changelogs under `packages/*/CHANGELOG.md` are the source of truth for patch/minor notes after 3.0. This root file tracks major theme releases.
+
+## [3.1.0]
+
+### Added
+- Full Prisma method parity on repositories: `count`, `exists`, `aggregate`, `groupBy`, `getThrowFirst`, `getManyCursor`, `update`, `delete`, `createManyAndReturn`, `updateManyAndReturn`, `upsertMany`, `queryRaw`, `executeRaw`
+- Typed error hierarchy (`RecordNotFoundError`, `UniqueConstraintError`, …)
+- Redis tagged codec for `Date` / `Decimal` / `Bytes` / `BigInt`
+- `defineAppRepo` model keys typed from `TypeMap.meta.modelProps` + app-level cache defaults
+- Publish manifest guard (`pnpm verify:publish`) and Node 20+22 CI with Postgres/Redis services
+
+### Fixed
+- Atomic tag invalidation via Lua; silent invalidation failures now emit telemetry
+- Row locks refuse non-PostgreSQL providers with a clear error
+- Cache key format version bump (legacy entries miss once after upgrade)
+
 ## [2.2.0]
 
 ### Added

@@ -1,5 +1,12 @@
 # @prismakit/core
 
+
+## 3.1.0
+
+### Minor Changes
+
+- Production hardening: full Prisma method parity, typed errors, Redis Date/Decimal/Bytes codec, atomic tag invalidation, lock provider guard, defineAppRepo model autocomplete + cache defaults, cache key v2.
+
 ## 3.0.2
 
 ### Patch Changes

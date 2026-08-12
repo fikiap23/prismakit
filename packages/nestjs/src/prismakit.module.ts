@@ -3,6 +3,7 @@ import {
   Global,
   Inject,
   Module,
+  OnApplicationBootstrap,
   OnModuleInit,
   Optional,
   Provider,
@@ -37,7 +38,15 @@ import {
   PRISMAKIT_OPTIONS,
   PRISMAKIT_PRISMA,
 } from './tokens';
-import { inheritRepoInjection } from './inherit-repo-inject';
+import {
+  assertCachedRepoProviders,
+  assertDuplicateRepoProviders,
+  assertUniqueRepoInstances,
+} from './assert-cached-repo-providers';
+import {
+  collectLiveRepoProviders,
+  inheritRepoInjection,
+} from './inherit-repo-inject';
 import { TransactionService } from './transaction.service';
 
 export type QueryLogOptions = {
@@ -88,6 +97,17 @@ export type PrismaKitModuleOptions = {
    * - `string[]` — register only these client keys (e.g. `['courierInvoiceItem']`)
    */
   autoRegisterModels?: boolean | readonly string[];
+  /**
+   * Fail boot when a repository class has `cache` in source but is not a Nest
+   * provider, or the same class is listed in two modules' `providers`.
+   * Default `true`. Set `false` to keep the previous silent-stub behaviour.
+   */
+  strictCachedRepos?: boolean;
+  /**
+   * Feature-modules directory scanned by `strictCachedRepos`.
+   * Default: `src/modules` (and `build/compile/src/modules` in production images).
+   */
+  modulesRoot?: string;
 };
 
 export type PrismaKitModuleAsyncOptions = {
@@ -198,7 +218,7 @@ function autoRegisterStubRepos(
 
 @Global()
 @Module({})
-export class PrismaKitModule implements OnModuleInit {
+export class PrismaKitModule implements OnModuleInit, OnApplicationBootstrap {
   constructor(
     @Optional()
     @Inject(PRISMAKIT_OPTIONS)
@@ -232,6 +252,22 @@ export class PrismaKitModule implements OnModuleInit {
       schemaPath: resolvedSchemaPath(this.options),
       autoRegisterModels: this.options.autoRegisterModels,
     });
+  }
+
+  onApplicationBootstrap(): void {
+    if (this.options?.strictCachedRepos === false) return;
+    const projectRoot = process.cwd();
+    const modulesRoot = this.options?.modulesRoot;
+    assertDuplicateRepoProviders({ projectRoot, modulesRoot });
+    if (!this.modulesContainer) return;
+    const live = collectLiveRepoProviders(this.modulesContainer);
+    assertCachedRepoProviders({
+      projectRoot,
+      modulesRoot,
+      cachedModels: live.cachedModels,
+      classNames: live.classNames,
+    });
+    assertUniqueRepoInstances(live.instancesByModel);
   }
 
   /**

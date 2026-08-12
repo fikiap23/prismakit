@@ -59,6 +59,11 @@ All methods accept optional `tx`. Cached repos also accept cache fields (see bel
 | `getFirst` | `where?`, `select?`, `lock?`, `setCache?`, `cacheTags?` | `T \| null` |
 | `getMany` | `where?`, `select?`, `orderBy?`, `take?`, `skip?`, `lock?`, `setCache?`, `cacheTags?` | `T[]` |
 | `getManyPaginate` | `where?`, `select?`, `orderBy?`, `page?`, `pageSize?`, `setCache?`, `cacheTags?` | `PaginatedResult<T>` |
+| `getManyCursor` | `where?`, `select?`, `orderBy?`, `cursor?`, `take?`, `skip?`, `setCache?`, `cacheTags?` | `CursorPage<T>` |
+| `count` | `where?`, `select?`, `setCache?`, `cacheTags?` | `{ count: number }` |
+| `exists` | `where?`, `setCache?`, `cacheTags?` | `{ exists: boolean }` |
+| `aggregate` | Prisma aggregate args + `setCache?`, `cacheTags?` | delegate result |
+| `groupBy` | Prisma groupBy args + `setCache?`, `cacheTags?` | delegate result |
 
 `PaginatedResult<T>`:
 
@@ -127,13 +132,15 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 ### Key schema
 
 ```
-{prefix}:repo:{model}:e:{id}:{method}:{selectHash}
-{prefix}:repo:{model}:q:{method}:{queryHash}
-{prefix}:repo:{model}:e:{id}:__idx
-{prefix}:repo:{model}:e:__idx
-{prefix}:repo:{model}:q:__idx
-{prefix}:repo:{model}:t:{tag}:__idx
+{prefix}:v2:repo:{model}:e:{id}:{method}:{selectHash}
+{prefix}:v2:repo:{model}:q:{method}:{queryHash}
+{prefix}:v2:repo:{model}:e:{id}:__idx
+{prefix}:v2:repo:{model}:e:__idx
+{prefix}:v2:repo:{model}:q:__idx
+{prefix}:v2:repo:{model}:t:{tag}:__idx
 ```
+
+Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal` (`__date`, `__bigint`, …). Bump to v2 keys causes a one-time miss after upgrade.
 
 ### Debug
 

@@ -67,6 +67,15 @@ function parseRelationAttrs(trimmed: string): {
   };
 }
 
+/** Extract `datasource` provider (`postgresql`, `mysql`, `sqlite`, …). */
+export function parseDatasourceProvider(schemaPath: string): string | undefined {
+  const content = fs.readFileSync(schemaPath, 'utf-8');
+  const match = content.match(
+    /datasource\s+\w+\s*\{[\s\S]*?provider\s*=\s*"([^"]+)"/,
+  );
+  return match?.[1];
+}
+
 export function parsePrismaSchema(schemaPath: string): SchemaModel[] {
   const content = fs.readFileSync(schemaPath, 'utf-8');
   const modelNames = new Set<string>();

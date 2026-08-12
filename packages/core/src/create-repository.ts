@@ -6,6 +6,7 @@ import {
   entityIndexKey,
   entityAllIndexKey,
   queryIndexKey,
+  tagIndexKey,
 } from './cache/cache-key.util';
 import { selectIncludesSensitiveField } from './cache/cache-guard.util';
 import { applyJitter } from './cache/ttl-jitter.util';
@@ -47,13 +48,22 @@ import { paginator, type PaginateFunction } from './pagination/paginator';
 import { splitSelect } from './utils/split-select';
 import { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
 import { RepositoryRegistry } from './repository-registry';
-import { ensurePrismaMeta, getModelMeta } from './schema/prisma-meta';
+import { ensurePrismaMeta, getModelMeta, getPrismaMeta } from './schema/prisma-meta';
 import { emitTelemetry } from './telemetry/telemetry';
 import type { ComposeOptions } from './compose/compose-options';
+import { wrapPrismaError, RecordNotFoundError } from './errors';
+import type { CursorPage } from './types/paginated-result.type';
 
 const paginate: PaginateFunction = paginator({});
 
-const NULL_SENTINEL = '__NULL__';
+const NULL_SENTINEL = { __prismakit_null: true as const };
+function isNullSentinel(v: unknown): boolean {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    (v as { __prismakit_null?: boolean }).__prismakit_null === true
+  );
+}
 const DEFAULT_CACHE_TTL = 86400;
 
 /**
@@ -236,6 +246,7 @@ function extractEntityIdFromRow(
 /**
  * Deep-ish clone before AutoComposer mutates rows in place.
  * Protects cache adapters that return stored objects by reference.
+ * Uses tagged JSON for Date/BigInt/Buffer preservation.
  */
 function cloneForCompose<T>(value: T): T {
   if (value === null || value === undefined) return value;
@@ -243,10 +254,30 @@ function cloneForCompose<T>(value: T): T {
     try {
       return structuredClone(value);
     } catch {
-      // Fall through for non-cloneable values
+      /* fall through */
     }
   }
-  return JSON.parse(JSON.stringify(value)) as T;
+  const replacer = (_k: string, v: unknown) => {
+    if (typeof v === 'bigint') return { __bigint: v.toString() };
+    if (v instanceof Date) return { __date: v.toISOString() };
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(v))
+      return { __bytes: v.toString('base64') };
+    return v;
+  };
+  const reviver = (_k: string, v: unknown) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const o = v as Record<string, unknown>;
+      const keys = Object.keys(o);
+      if (keys.length === 1 && '__bigint' in o && typeof o.__bigint === 'string')
+        return BigInt(o.__bigint);
+      if (keys.length === 1 && '__date' in o && typeof o.__date === 'string')
+        return new Date(o.__date);
+      if (keys.length === 1 && '__bytes' in o && typeof o.__bytes === 'string')
+        return Buffer.from(o.__bytes as string, 'base64');
+    }
+    return v;
+  };
+  return JSON.parse(JSON.stringify(value, replacer), reviver) as T;
 }
 
 function resolveGetDelegate(
@@ -397,6 +428,24 @@ function createRepositoryImpl<
     );
   }
 
+  if (options.model && !options.scalarFields && !getModelMeta(options.model) && getPrismaMeta()) {
+    throw new Error(
+      `[createRepository] model "${options.model}" has no Prisma meta. Ensure prisma/schema.prisma exists (or set schemaPath), or pass scalarFields explicitly.`,
+    );
+  }
+
+  if (options.model && options.scalarFields) {
+    const metaSf = getModelMeta(options.model)?.scalarFields;
+    if (metaSf) {
+      const overlap = Object.keys(options.scalarFields).some((k) => k in metaSf);
+      if (!overlap) {
+        throw new Error(
+          `[createRepository] scalarFields do not match model "${options.model}" meta — wrong Prisma.*ScalarFieldEnum?`,
+        );
+      }
+    }
+  }
+
   const getModel = (prisma: PrismaClientLike, tx?: PrismaClientLike) =>
     getDelegate(tx ?? prisma);
 
@@ -461,7 +510,7 @@ function createRepositoryImpl<
   async function waitForStampede<T>(
     cache: CacheAdapter,
     key: string,
-    read: () => Promise<T | null | typeof NULL_SENTINEL | unknown>,
+    read: () => Promise<T | null | unknown>,
   ): Promise<{ hit: true; data: unknown } | { hit: false }> {
     const started = Date.now();
     let waited = 0;
@@ -510,7 +559,7 @@ function createRepositoryImpl<
     return singleflight(`entity:${key}`, async () => {
       const raw = await cache.safeGet<unknown>(key);
       if (raw !== null) {
-        if (raw === NULL_SENTINEL) return { hit: true as const, data: null };
+        if (isNullSentinel(raw)) return { hit: true as const, data: null };
         return {
           hit: true as const,
           data: toPayload<T>(raw) as Payload<T>,
@@ -523,7 +572,7 @@ function createRepositoryImpl<
           cache.safeGet<unknown>(key),
         );
         if (waited.hit) {
-          if (waited.data === NULL_SENTINEL) {
+          if (isNullSentinel(waited.data)) {
             return { hit: true as const, data: null };
           }
           return {
@@ -583,19 +632,19 @@ function createRepositoryImpl<
     });
 
     return singleflight(`query:${key}`, async () => {
-      const raw = await cache.safeGet<typeof NULL_SENTINEL | TResult>(key);
+      const raw = await cache.safeGet<unknown>(key);
       if (raw !== null) {
-        if (raw === NULL_SENTINEL) return { hit: true as const, data: null };
-        return { hit: true as const, data: raw };
+        if (isNullSentinel(raw)) return { hit: true as const, data: null };
+        return { hit: true as const, data: raw as TResult };
       }
       const locked = await acquireLock(cache, key);
       if (!locked) {
         emitTelemetry({ type: 'stampede.locked', model: modelName, key });
         const waited = await waitForStampede(cache, key, () =>
-          cache.safeGet<typeof NULL_SENTINEL | TResult>(key),
+          cache.safeGet<unknown>(key),
         );
         if (waited.hit) {
-          if (waited.data === NULL_SENTINEL) {
+          if (isNullSentinel(waited.data)) {
             return { hit: true as const, data: null };
           }
           return { hit: true as const, data: waited.data as TResult };
@@ -614,7 +663,7 @@ function createRepositoryImpl<
     const prefix = getPrefix(cache);
     await Promise.all(
       tags.map((tag) => {
-        const idxKey = `${prefix}:repo:${modelName}:t:${tag}:__idx`;
+        const idxKey = tagIndexKey(prefix, modelName, tag);
         return cache.safeSaddAndExpire(idxKey, [key], ttlSeconds);
       }),
     );
@@ -658,7 +707,11 @@ function createRepositoryImpl<
     id: string,
   ): Promise<void> {
     const idxKey = entityIndexKey(getPrefix(cache), modelName, id);
-    await cache.safeInvalidateByIndex(idxKey);
+    if (cacheOpts?.strictInvalidation && (cache as any).invalidateByIndex) {
+      await (cache as any).invalidateByIndex(idxKey);
+    } else {
+      await cache.safeInvalidateByIndex(idxKey);
+    }
     await cache.safeDel(`__setmeta:${idxKey}`);
     emitTelemetry({
       type: 'cache.invalidate',
@@ -668,9 +721,12 @@ function createRepositoryImpl<
   }
 
   async function doInvalidateQueries(cache: CacheAdapter): Promise<void> {
-    await cache.safeInvalidateByIndex(
-      queryIndexKey(getPrefix(cache), modelName),
-    );
+    const idxKey = queryIndexKey(getPrefix(cache), modelName);
+    if (cacheOpts?.strictInvalidation && (cache as any).invalidateByIndex) {
+      await (cache as any).invalidateByIndex(idxKey);
+    } else {
+      await cache.safeInvalidateByIndex(idxKey);
+    }
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -683,23 +739,22 @@ function createRepositoryImpl<
     tags: string[],
   ): Promise<void> {
     const prefix = getPrefix(cache);
-    const keysToDelete: string[] = [];
-    const idxKeysToDelete: string[] = [];
-
+    const invalidateFn = cacheOpts?.strictInvalidation
+      ? (idxKey: string) => cache.invalidateByIndex
+        ? cache.invalidateByIndex(idxKey)
+        : cache.safeInvalidateByIndex(idxKey)
+      : (idxKey: string) => cache.safeInvalidateByIndex(idxKey);
     await Promise.all(
       tags.map(async (tag) => {
-        const idxKey = `${prefix}:repo:${modelName}:t:${tag}:__idx`;
-        const keys = await cache.safeSmembers(idxKey);
-        if (keys.length > 0) keysToDelete.push(...keys);
-        idxKeysToDelete.push(idxKey);
+        const idxKey = tagIndexKey(prefix, modelName, tag);
+        await invalidateFn(idxKey);
       }),
     );
-
-    if (keysToDelete.length > 0) {
-      await cache.safeDel(...new Set(keysToDelete), ...idxKeysToDelete);
-    } else if (idxKeysToDelete.length > 0) {
-      await cache.safeDel(...idxKeysToDelete);
-    }
+    emitTelemetry({
+      type: 'cache.invalidate',
+      model: modelName,
+      detail: `tags:${tags.join(',')}`,
+    });
   }
 
   async function doInvalidateAllEntities(cache: CacheAdapter): Promise<void> {
@@ -788,6 +843,11 @@ function createRepositoryImpl<
           repository: this,
           scalarFields,
         });
+      }
+      if (deps.cache && !(deps.cache as any).onError) {
+        (deps.cache as any).onError = (err: unknown, op: string) => {
+          emitTelemetry({ type: 'cache.error', model: modelName, detail: op, error: err });
+        };
       }
     }
 
@@ -1020,21 +1080,31 @@ function createRepositoryImpl<
           }
 
           try {
-            const result = await timedQuery('getById', () =>
-              getModel(this.deps.prisma, tx).findUnique({
-                where: idWhere(primaryKey, id),
-                select: dbSelect,
-              }),
-            );
-            if (useCache) {
-              await cacheSetEntity(
-                this.deps.cache!,
-                id,
-                'getById',
-                result,
-                dbSelect,
+            const entityKey = buildEntityKey({
+              prefix: useCache ? getPrefix(this.deps.cache!) : '',
+              model: modelName,
+              id: idCacheKey(primaryKey, id),
+              method: 'getById',
+              select: dbSelect,
+            });
+            const result = await singleflight(`db:entity:${entityKey}`, async () => {
+              const row = await timedQuery('getById', () =>
+                getModel(this.deps.prisma, tx).findUnique({
+                  where: idWhere(primaryKey, id),
+                  select: dbSelect,
+                }),
               );
-            }
+              if (useCache) {
+                await cacheSetEntity(
+                  this.deps.cache!,
+                  id,
+                  'getById',
+                  row,
+                  dbSelect,
+                );
+              }
+              return row;
+            });
             return toPayload<T>(result) as Payload<T>;
           } catch (err) {
             if (useCache) {
@@ -1135,21 +1205,31 @@ function createRepositoryImpl<
           }
 
           try {
-            const result = await timedQuery('getThrowById', () =>
-              getModel(this.deps.prisma, tx).findUniqueOrThrow({
-                where: idWhere(primaryKey, id),
-                select: dbSelect,
-              }),
-            );
-            if (useCache) {
-              await cacheSetEntity(
-                this.deps.cache!,
-                id,
-                'getThrowById',
-                result,
-                dbSelect,
+            const entityKey = buildEntityKey({
+              prefix: useCache ? getPrefix(this.deps.cache!) : '',
+              model: modelName,
+              id: idCacheKey(primaryKey, id),
+              method: 'getThrowById',
+              select: dbSelect,
+            });
+            const result = await singleflight(`db:entity:${entityKey}`, async () => {
+              const row = await timedQuery('getThrowById', () =>
+                getModel(this.deps.prisma, tx).findUniqueOrThrow({
+                  where: idWhere(primaryKey, id),
+                  select: dbSelect,
+                }),
               );
-            }
+              if (useCache) {
+                await cacheSetEntity(
+                  this.deps.cache!,
+                  id,
+                  'getThrowById',
+                  row,
+                  dbSelect,
+                );
+              }
+              return row;
+            });
             return toPayload<T>(result) as Payload<T>;
           } catch (err) {
             if (useCache) {
@@ -1162,7 +1242,7 @@ function createRepositoryImpl<
               });
               await releaseLock(this.deps.cache!, key);
             }
-            throw err;
+            wrapPrismaError(err, { model: modelName, where: idWhere(primaryKey, id) });
           }
         },
         { tx, setCache },
@@ -1237,22 +1317,26 @@ function createRepositoryImpl<
           });
         }
 
-        const result = await timedQuery('getFirst', () =>
-          getModel(this.deps.prisma, tx).findFirst({
-            where,
-            select: dbSelect,
-          }),
-        );
-        if (useCache) {
-          const resolvedTags = resolveTags(where, cacheTags as any);
-          await cacheSetQuery(
-            this.deps.cache!,
-            'getFirst',
-            params,
-            result,
-            resolvedTags,
+        const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getFirst', params });
+        const result = await singleflight(`db:query:${queryKey}`, async () => {
+          const row = await timedQuery('getFirst', () =>
+            getModel(this.deps.prisma, tx).findFirst({
+              where,
+              select: dbSelect,
+            }),
           );
-        }
+          if (useCache) {
+            const resolvedTags = resolveTags(where, cacheTags as any);
+            await cacheSetQuery(
+              this.deps.cache!,
+              'getFirst',
+              params,
+              row,
+              resolvedTags,
+            );
+          }
+          return row;
+        });
         return toPayload<T>(result) as Payload<T>;
       },
         { tx, setCache },
@@ -1342,26 +1426,30 @@ function createRepositoryImpl<
           });
         }
 
-        const results = await timedQuery('getMany', () =>
-          getModel(this.deps.prisma, tx).findMany({
-            where,
-            select: dbSelect,
-            orderBy,
-            take,
-            skip,
-          }),
-        );
-        if (useCache) {
-          const resolvedTags = resolveTags(where, cacheTags as any);
-          await cacheSetQuery(
-            this.deps.cache!,
-            'getMany',
-            params,
-            results,
-            resolvedTags,
+        const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getMany', params });
+        const results = await singleflight(`db:query:${queryKey}`, async () => {
+          const rows = await timedQuery('getMany', () =>
+            getModel(this.deps.prisma, tx).findMany({
+              where,
+              select: dbSelect,
+              orderBy,
+              take,
+              skip,
+            }),
           );
-        }
-        return results.map((item) => toPayload<T>(item) as Payload<T>);
+          if (useCache) {
+            const resolvedTags = resolveTags(where, cacheTags as any);
+            await cacheSetQuery(
+              this.deps.cache!,
+              'getMany',
+              params,
+              rows,
+              resolvedTags,
+            );
+          }
+          return rows;
+        });
+        return results.map((item: unknown) => toPayload<T>(item) as Payload<T>);
       },
         { tx, setCache },
       );
@@ -1660,6 +1748,703 @@ function createRepositoryImpl<
         );
       }
       return result;
+    }
+
+    async getThrowFirst<T extends TSelect>({
+      tx,
+      where,
+      select,
+      setCache,
+      cacheTags,
+      lock,
+      orderBy,
+    }: {
+      tx?: PrismaClientLike;
+      where?: TWhereInput;
+      select?: T;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+      lock?: RowLockOptions;
+      orderBy?: TOrderBy;
+    }): Promise<Payload<T>> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          if (lock) {
+            assertLockPrerequisites(tx, lockConfig);
+            if (!where || typeof where !== 'object') {
+              throw new Error('Row lock on getThrowFirst requires a simple where object');
+            }
+            const rows = await queryRowsForUpdate(tx as any, lockConfig, {
+              where: where as Record<string, unknown>,
+              select: dbSelect,
+              lock,
+              take: 1,
+              orderBy,
+            });
+            emitTelemetry({
+              type: 'lock.acquired',
+              model: modelName,
+              mode: lock.mode,
+            });
+            if (!rows[0]) {
+              throw new RecordNotFoundError(
+                `Record not found (${modelName})`,
+                { model: modelName, where },
+              );
+            }
+            return toPayload<T>(rows[0]) as Payload<T>;
+          }
+
+          const params = { where, select: dbSelect } as Record<string, unknown>;
+          const useCache =
+            shouldCache('getThrowFirst', setCache, tx, dbSelect) &&
+            canUseCache(this.deps.cache);
+
+          if (useCache) {
+            const cached = await cacheGetQuery<unknown>(
+              this.deps.cache!,
+              'getThrowFirst',
+              params,
+            );
+            if (cached.hit) {
+              recordCacheDebug('getThrowFirst', 'HIT', modelName);
+              emitTelemetry({
+                type: 'cache.hit',
+                model: modelName,
+                method: 'getThrowFirst',
+              });
+              if (cached.data === null) {
+                throw new RecordNotFoundError(
+                  `Record not found (${modelName})`,
+                  { model: modelName, where },
+                );
+              }
+              return toPayload<T>(cached.data) as Payload<T>;
+            }
+            recordCacheDebug('getThrowFirst', 'MISS', modelName);
+            emitTelemetry({
+              type: 'cache.miss',
+              model: modelName,
+              method: 'getThrowFirst',
+            });
+          }
+
+          try {
+            const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getThrowFirst', params });
+            const result = await singleflight(`db:query:${queryKey}`, async () => {
+              const row = await timedQuery('getThrowFirst', () =>
+                getModel(this.deps.prisma, tx).findFirst({
+                  where,
+                  select: dbSelect,
+                }),
+              );
+              if (row === null) {
+                throw new RecordNotFoundError(
+                  `Record not found (${modelName})`,
+                  { model: modelName, where },
+                );
+              }
+              if (useCache) {
+                const resolvedTags = resolveTags(where, cacheTags as any);
+                await cacheSetQuery(
+                  this.deps.cache!,
+                  'getThrowFirst',
+                  params,
+                  row,
+                  resolvedTags,
+                );
+              }
+              return row;
+            });
+            return toPayload<T>(result) as Payload<T>;
+          } catch (err) {
+            wrapPrismaError(err, { model: modelName, where });
+            throw err;
+          }
+        },
+        { tx, setCache },
+      );
+    }
+
+    async count({
+      tx,
+      where,
+      select,
+      setCache,
+      cacheTags,
+    }: {
+      tx?: PrismaClientLike;
+      where?: TWhereInput;
+      select?: object;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+    }): Promise<number> {
+      const params = { where, select } as Record<string, unknown>;
+      const useCache =
+        shouldCache('count', setCache, tx) &&
+        canUseCache(this.deps.cache);
+
+      if (useCache) {
+        const cached = await cacheGetQuery<number>(
+          this.deps.cache!,
+          'count',
+          params,
+        );
+        if (cached.hit) {
+          recordCacheDebug('count', 'HIT', modelName);
+          emitTelemetry({ type: 'cache.hit', model: modelName, method: 'count' });
+          return cached.data ?? 0;
+        }
+        recordCacheDebug('count', 'MISS', modelName);
+        emitTelemetry({ type: 'cache.miss', model: modelName, method: 'count' });
+      }
+
+      const result = await timedQuery('count', () =>
+        getModel(this.deps.prisma, tx).count({ where, select }),
+      );
+      if (useCache) {
+        const resolvedTags = resolveTags(where, cacheTags as any);
+        await cacheSetQuery(this.deps.cache!, 'count', params, result, resolvedTags);
+      }
+      return typeof result === 'number' ? result : Number(result);
+    }
+
+    async exists({
+      tx,
+      where,
+      setCache,
+      cacheTags,
+    }: {
+      tx?: PrismaClientLike;
+      where?: TWhereInput;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+    }): Promise<boolean> {
+      const params = { where, take: 1 } as Record<string, unknown>;
+      const useCache =
+        shouldCache('exists', setCache, tx) &&
+        canUseCache(this.deps.cache);
+
+      if (useCache) {
+        const cached = await cacheGetQuery<boolean>(
+          this.deps.cache!,
+          'exists',
+          params,
+        );
+        if (cached.hit) {
+          recordCacheDebug('exists', 'HIT', modelName);
+          emitTelemetry({ type: 'cache.hit', model: modelName, method: 'exists' });
+          return cached.data ?? false;
+        }
+        recordCacheDebug('exists', 'MISS', modelName);
+        emitTelemetry({ type: 'cache.miss', model: modelName, method: 'exists' });
+      }
+
+      const n = await timedQuery('exists', () =>
+        getModel(this.deps.prisma, tx).count({ where, take: 1 }),
+      );
+      const result = n > 0;
+      if (useCache) {
+        const resolvedTags = resolveTags(where, cacheTags as any);
+        await cacheSetQuery(this.deps.cache!, 'exists', params, result, resolvedTags);
+      }
+      return result;
+    }
+
+    async aggregate({
+      tx,
+      where,
+      setCache,
+      cacheTags,
+      ...rest
+    }: {
+      tx?: PrismaClientLike;
+      where?: TWhereInput;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+      [key: string]: unknown;
+    }): Promise<unknown> {
+      const delegate = getModel(this.deps.prisma, tx);
+      if (!delegate.aggregate) {
+        throw new Error(
+          `[createRepository] model "${modelName}" does not support aggregate`,
+        );
+      }
+      const params = { where, ...rest } as Record<string, unknown>;
+      const useCache =
+        shouldCache('aggregate', setCache, tx) &&
+        canUseCache(this.deps.cache);
+
+      if (useCache) {
+        const cached = await cacheGetQuery<unknown>(
+          this.deps.cache!,
+          'aggregate',
+          params,
+        );
+        if (cached.hit) {
+          recordCacheDebug('aggregate', 'HIT', modelName);
+          emitTelemetry({ type: 'cache.hit', model: modelName, method: 'aggregate' });
+          return cached.data;
+        }
+        recordCacheDebug('aggregate', 'MISS', modelName);
+        emitTelemetry({ type: 'cache.miss', model: modelName, method: 'aggregate' });
+      }
+
+      const result = await timedQuery('aggregate', () =>
+        delegate.aggregate!({ where, ...rest }),
+      );
+      if (useCache) {
+        const resolvedTags = resolveTags(where, cacheTags as any);
+        await cacheSetQuery(this.deps.cache!, 'aggregate', params, result, resolvedTags);
+      }
+      return result;
+    }
+
+    async groupBy({
+      tx,
+      setCache,
+      cacheTags,
+      ...rest
+    }: {
+      tx?: PrismaClientLike;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: unknown) => string[]);
+      [key: string]: unknown;
+    }): Promise<unknown> {
+      const delegate = getModel(this.deps.prisma, tx);
+      if (!delegate.groupBy) {
+        throw new Error(
+          `[createRepository] model "${modelName}" does not support groupBy`,
+        );
+      }
+      const params = { ...rest } as Record<string, unknown>;
+      const useCache =
+        shouldCache('groupBy', setCache, tx) &&
+        canUseCache(this.deps.cache);
+
+      if (useCache) {
+        const cached = await cacheGetQuery<unknown>(
+          this.deps.cache!,
+          'groupBy',
+          params,
+        );
+        if (cached.hit) {
+          recordCacheDebug('groupBy', 'HIT', modelName);
+          emitTelemetry({ type: 'cache.hit', model: modelName, method: 'groupBy' });
+          return cached.data;
+        }
+        recordCacheDebug('groupBy', 'MISS', modelName);
+        emitTelemetry({ type: 'cache.miss', model: modelName, method: 'groupBy' });
+      }
+
+      const result = await timedQuery('groupBy', () =>
+        delegate.groupBy!(rest),
+      );
+      if (useCache) {
+        const resolvedTags = resolveTags((rest as any).where, cacheTags as any);
+        await cacheSetQuery(this.deps.cache!, 'groupBy', params, result, resolvedTags);
+      }
+      return result;
+    }
+
+    async getManyCursor<T extends TSelect>({
+      tx,
+      where,
+      select,
+      orderBy,
+      cursor,
+      take = 20,
+      skip,
+      setCache,
+      cacheTags,
+    }: {
+      tx?: PrismaClientLike;
+      where?: TWhereInput;
+      select?: T;
+      orderBy?: TOrderBy;
+      cursor?: unknown;
+      take?: number;
+      skip?: number;
+      setCache?: boolean;
+      cacheTags?: string[] | ((where?: TWhereInput) => string[]);
+    }): Promise<CursorPage<Payload<T>>> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const params = { where, select: dbSelect, orderBy, cursor, take, skip } as Record<string, unknown>;
+          const useCache =
+            shouldCache('getManyCursor', setCache, tx, dbSelect) &&
+            canUseCache(this.deps.cache);
+
+          if (useCache) {
+            const cached = await cacheGetQuery<CursorPage<unknown>>(
+              this.deps.cache!,
+              'getManyCursor',
+              params,
+            );
+            if (cached.hit) {
+              recordCacheDebug('getManyCursor', 'HIT', modelName);
+              emitTelemetry({ type: 'cache.hit', model: modelName, method: 'getManyCursor' });
+              const data = (cached.data?.data ?? []).map(
+                (item) => toPayload<T>(item) as Payload<T>,
+              );
+              return { ...(cached.data as CursorPage<Payload<T>>), data };
+            }
+            recordCacheDebug('getManyCursor', 'MISS', modelName);
+            emitTelemetry({ type: 'cache.miss', model: modelName, method: 'getManyCursor' });
+          }
+
+          const fetchCount = take + 1;
+          const findManyArgs: any = {
+            where,
+            select: dbSelect,
+            orderBy,
+            take: fetchCount,
+          };
+          if (cursor) findManyArgs.cursor = cursor;
+          if (skip) findManyArgs.skip = skip;
+
+          const rows = await timedQuery('getManyCursor', () =>
+            getModel(this.deps.prisma, tx).findMany(findManyArgs),
+          );
+
+          const hasMore = rows.length > take;
+          const data = hasMore ? rows.slice(0, take) : rows;
+          let nextCursor: unknown | null = null;
+          if (hasMore && data.length > 0) {
+            const lastRow = data[data.length - 1] as Record<string, unknown>;
+            if (Array.isArray(primaryKey)) {
+              const cursorObj: Record<string, unknown> = {};
+              for (const k of primaryKey) cursorObj[k] = lastRow[k];
+              nextCursor = cursorObj;
+            } else {
+              nextCursor = lastRow[primaryKey] ?? null;
+            }
+          }
+
+          const mapped = data.map((item: unknown) => toPayload<T>(item) as Payload<T>);
+          const result: CursorPage<Payload<T>> = { data: mapped, nextCursor, hasMore };
+
+          if (useCache) {
+            const resolvedTags = resolveTags(where, cacheTags as any);
+            await cacheSetQuery(this.deps.cache!, 'getManyCursor', params, result, resolvedTags);
+          }
+          return result;
+        },
+        { tx, setCache },
+      );
+    }
+
+    async update<T extends TSelect>({
+      tx,
+      where,
+      data,
+      select,
+      invalidate = 'all',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      where: TWhereInput;
+      data: TUpdateInput;
+      select?: T;
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<Payload<T>>;
+    }): Promise<Payload<T>> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const selectForWrite = ensureSelectPrimaryKey(
+            dbSelect ?? {},
+            primaryKey,
+            scalarFields,
+          ) as Record<string, any>;
+          const result = await timedQuery('update', () =>
+            getModel(this.deps.prisma, tx).update({
+              where,
+              data,
+              select: selectForWrite,
+            }),
+          );
+          if (!tx && canInvalidate(this.deps.cache)) {
+            const resolvedTags =
+              typeof tags === 'function'
+                ? tags(toPayload<T>(result) as Payload<T>)
+                : tags;
+            const entityId = extractEntityIdFromRow(result, primaryKey);
+            await runInvalidation(
+              this.deps.cache,
+              invalidate,
+              entityId,
+              resolvedTags ?? undefined,
+            );
+          }
+          return toPayload<T>(result) as Payload<T>;
+        },
+        { tx, setCache: false },
+      );
+    }
+
+    async delete<T extends TSelect>({
+      tx,
+      where,
+      select,
+      invalidate = 'all',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      where: TWhereInput;
+      select?: T;
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<Payload<T>>;
+    }): Promise<Payload<T>> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const selectForWrite = ensureSelectPrimaryKey(
+            dbSelect ?? {},
+            primaryKey,
+            scalarFields,
+          ) as Record<string, any>;
+          const result = await timedQuery('delete', () =>
+            getModel(this.deps.prisma, tx).delete({
+              where,
+              select: selectForWrite,
+            }),
+          );
+          if (!tx && canInvalidate(this.deps.cache)) {
+            const resolvedTags =
+              typeof tags === 'function'
+                ? tags(toPayload<T>(result) as Payload<T>)
+                : tags;
+            const entityId = extractEntityIdFromRow(result, primaryKey);
+            await runInvalidation(
+              this.deps.cache,
+              invalidate,
+              entityId,
+              resolvedTags ?? undefined,
+            );
+          }
+          return toPayload<T>(result) as Payload<T>;
+        },
+        { tx, setCache: false },
+      );
+    }
+
+    async createManyAndReturn<T extends TSelect>({
+      tx,
+      data,
+      select,
+      skipDuplicates,
+      invalidate = 'queries',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      data: TCreateInput[];
+      select?: T;
+      skipDuplicates?: boolean;
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<Payload<T>[]>;
+    }): Promise<Payload<T>[]> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const delegate = getModel(this.deps.prisma, tx);
+          if (!delegate.createManyAndReturn) {
+            throw new Error(
+              `[createRepository] model "${modelName}" does not support createManyAndReturn`,
+            );
+          }
+          const results = await timedQuery('createManyAndReturn', () =>
+            delegate.createManyAndReturn!({ data, select: dbSelect, skipDuplicates }),
+          );
+          if (!tx && canInvalidate(this.deps.cache)) {
+            const mapped = results.map((item: unknown) => toPayload<T>(item) as Payload<T>);
+            const resolvedTags =
+              typeof tags === 'function' ? tags(mapped) : tags;
+            await runInvalidation(
+              this.deps.cache,
+              invalidate,
+              undefined,
+              resolvedTags ?? undefined,
+            );
+          }
+          return results.map((item: unknown) => toPayload<T>(item) as Payload<T>);
+        },
+        { tx, setCache: false },
+      );
+    }
+
+    async updateManyAndReturn<T extends TSelect>({
+      tx,
+      where,
+      data,
+      select,
+      invalidate = 'all',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      where: TWhereInput;
+      data: TUpdateInput;
+      select?: T;
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<Payload<T>[]>;
+    }): Promise<Payload<T>[]> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const delegate = getModel(this.deps.prisma, tx);
+          if (!delegate.updateManyAndReturn) {
+            throw new Error(
+              `[createRepository] model "${modelName}" does not support updateManyAndReturn`,
+            );
+          }
+          const results = await timedQuery('updateManyAndReturn', () =>
+            delegate.updateManyAndReturn!({ where, data, select: dbSelect }),
+          );
+          if (!tx && canInvalidate(this.deps.cache)) {
+            const mapped = results.map((item: unknown) => toPayload<T>(item) as Payload<T>);
+            const resolvedTags =
+              typeof tags === 'function' ? tags(mapped) : tags;
+            await runInvalidation(
+              this.deps.cache,
+              invalidate,
+              undefined,
+              resolvedTags ?? undefined,
+            );
+          }
+          return results.map((item: unknown) => toPayload<T>(item) as Payload<T>);
+        },
+        { tx, setCache: false },
+      );
+    }
+
+    async upsertMany<T extends TSelect>({
+      tx,
+      items,
+      select,
+      chunkSize = 50,
+      invalidate = 'all',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      items: Array<{
+        where: TWhereInput;
+        create: TCreateInput;
+        update: TUpdateInput;
+      }>;
+      select?: T;
+      chunkSize?: number;
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<Payload<T>[]>;
+    }): Promise<Payload<T>[]> {
+      return this.processSelectAndCompose(
+        select,
+        async (dbSelect) => {
+          const delegate = getModel(this.deps.prisma, tx);
+          if (!delegate.upsert) {
+            throw new Error(
+              `[createRepository] model "${modelName}" does not support upsert`,
+            );
+          }
+          const run = async (client: PrismaClientLike) => {
+            const out: unknown[] = [];
+            for (let i = 0; i < items.length; i += chunkSize) {
+              const chunk = items.slice(i, i + chunkSize);
+              const part = await Promise.all(
+                chunk.map((it) =>
+                  getModel(this.deps.prisma, client).upsert!({
+                    where: it.where,
+                    create: it.create,
+                    update: it.update,
+                    select: dbSelect,
+                  }),
+                ),
+              );
+              out.push(...part);
+            }
+            return out;
+          };
+
+          let results: unknown[];
+          if (tx) {
+            results = await timedQuery('upsertMany', () => run(tx));
+          } else {
+            const client = this.deps.prisma as any;
+            if (client.$transaction) {
+              results = await timedQuery('upsertMany', () =>
+                client.$transaction((txClient: PrismaClientLike) => run(txClient)),
+              );
+            } else {
+              results = await timedQuery('upsertMany', () => run(this.deps.prisma));
+            }
+          }
+
+          if (!tx && canInvalidate(this.deps.cache)) {
+            const mapped = results.map((item) => toPayload<T>(item) as Payload<T>);
+            const resolvedTags =
+              typeof tags === 'function' ? tags(mapped) : tags;
+            await runInvalidation(
+              this.deps.cache,
+              invalidate,
+              undefined,
+              resolvedTags ?? undefined,
+            );
+          }
+          return results.map((item) => toPayload<T>(item) as Payload<T>);
+        },
+        { tx, setCache: false },
+      );
+    }
+
+    async queryRaw<TResult = unknown>({
+      tx,
+      sql,
+      values,
+    }: {
+      tx?: PrismaClientLike;
+      sql: TemplateStringsArray | string;
+      values?: unknown[];
+    }): Promise<TResult> {
+      const client = (tx ?? this.deps.prisma) as any;
+      return timedQuery('queryRaw', () => {
+        if (Array.isArray(sql) && 'raw' in Object(sql)) {
+          return client.$queryRaw(sql, ...(values ?? []));
+        }
+        return client.$queryRawUnsafe(String(sql), ...(values ?? []));
+      });
+    }
+
+    async executeRaw({
+      tx,
+      sql,
+      values,
+      invalidate = 'all',
+      tags,
+    }: {
+      tx?: PrismaClientLike;
+      sql: TemplateStringsArray | string;
+      values?: unknown[];
+      invalidate?: InvalidateMode;
+      tags?: MutationTags<unknown>;
+    }): Promise<number> {
+      const client = (tx ?? this.deps.prisma) as any;
+      const result = await timedQuery('executeRaw', () => {
+        if (Array.isArray(sql) && 'raw' in Object(sql)) {
+          return client.$executeRaw(sql, ...(values ?? []));
+        }
+        return client.$executeRawUnsafe(String(sql), ...(values ?? []));
+      });
+      if (!tx && canInvalidate(this.deps.cache)) {
+        const resolvedTags = typeof tags === 'function' ? tags(result) : tags;
+        await runInvalidation(
+          this.deps.cache,
+          invalidate,
+          undefined,
+          resolvedTags ?? undefined,
+        );
+      }
+      return typeof result === 'number' ? result : Number(result);
     }
   }
 

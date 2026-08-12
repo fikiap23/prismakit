@@ -125,6 +125,31 @@ const page = await repo.getManyPaginate({
 // { data, meta: { page, pageSize, totalItems, totalPages } }
 ```
 
+### `getManyCursor`
+
+Keyset pagination for large lists:
+
+```typescript
+const page = await repo.getManyCursor({
+  where: { status: 'ACTIVE' },
+  select: { id: true, name: true },
+  orderBy: { id: 'asc' },
+  cursor: lastId ? { id: lastId } : undefined,
+  take: 20,
+  setCache: true,
+});
+// { data, nextCursor, hasMore }
+```
+
+### `count` / `exists`
+
+```typescript
+await repo.count({ where: { status: 'ACTIVE' }, setCache: true });
+await repo.exists({ where: { email } }); // no setCache on uniqueness
+```
+
+See [Aggregations](aggregations.md) for `aggregate` / `groupBy`.
+
 ### When to use `setCache: true`
 
 | Use case | `setCache` |
@@ -158,6 +183,19 @@ await repo.updateById({
 });
 
 await repo.deleteById({ id, invalidate: 'all' });
+```
+
+### `updateMany` / `deleteMany`
+
+Bulk mutations by `where` (default `invalidate: 'all'`):
+
+```typescript
+await repo.updateMany({
+  where: { status: 'DRAFT' },
+  data: { status: 'ARCHIVED' },
+});
+
+await repo.deleteMany({ where: { expiredAt: { lt: now } } });
 ```
 
 ### Invalidate modes

@@ -2,9 +2,27 @@ import 'reflect-metadata';
 import { describe, it, expect, vi } from 'vitest';
 import { AutoComposer, RepositoryRegistry } from '@prismakit/core';
 import { createInjectableRepository } from '../injectable-repository';
+import { getPrismakitRepoMeta } from '../inherit-repo-inject';
 import { PRISMAKIT_CACHE, PRISMAKIT_PRISMA } from '../tokens';
 
 describe('createInjectableRepository DI', () => {
+  it('stamps model and hasCache on the injectable class', () => {
+    const Cached = createInjectableRepository({
+      model: 'profile',
+      cache: { ttl: 60 },
+    });
+    expect(getPrismakitRepoMeta(Cached)).toEqual({
+      model: 'profile',
+      hasCache: true,
+    });
+
+    const Uncached = createInjectableRepository({ model: 'productImage' });
+    expect(getPrismakitRepoMeta(Uncached)).toEqual({
+      model: 'productImage',
+      hasCache: false,
+    });
+  });
+
   it('declares @Inject tokens for prisma, cache, registry, and AutoComposer', () => {
     const Repo = createInjectableRepository({ model: 'user' });
     const selfDeps: Array<{ index: number; param: unknown }> =

@@ -55,6 +55,20 @@ describe('RedisCacheAdapter', () => {
     expect(parsed.nested.n).toBe(1n);
   });
 
+  it('round-trips Date and Buffer via redisJson helpers', async () => {
+    const { redisJsonParse, redisJsonStringify } = await import('../redis-json');
+    const createdAt = new Date('2026-01-15T12:00:00.000Z');
+    const blob = Buffer.from('hello');
+    const payload = { createdAt, blob };
+    const raw = redisJsonStringify(payload);
+    expect(raw).toContain('__date');
+    expect(raw).toContain('__bytes');
+    const parsed = redisJsonParse<typeof payload>(raw);
+    expect(parsed.createdAt).toEqual(createdAt);
+    expect(Buffer.isBuffer(parsed.blob)).toBe(true);
+    expect(parsed.blob.toString()).toBe('hello');
+  });
+
   it('set/get uses BigInt-safe JSON', async () => {
     const { RedisCacheAdapter } = await import('../redis-cache-adapter');
     let stored: string | undefined;

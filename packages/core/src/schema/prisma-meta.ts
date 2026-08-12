@@ -3,6 +3,7 @@ import * as path from 'path';
 
 import {
   getSchemaModels,
+  parseDatasourceProvider,
   pascalToRepoKey,
   type SchemaModel,
 } from './parse-prisma-schema';
@@ -90,15 +91,26 @@ export type PrismaDmmfLike = {
 };
 
 let globalPrismaMeta: PrismaMetaRegistry | null = null;
+let globalDatasourceProvider: string | undefined;
 
 /** Replace the process-wide Prisma metadata registry. */
 export function setPrismaMeta(meta: PrismaMetaRegistry): void {
   globalPrismaMeta = meta;
 }
 
+/** Datasource provider from schema (`postgresql`, `mysql`, …). */
+export function setDatasourceProvider(provider: string | undefined): void {
+  globalDatasourceProvider = provider;
+}
+
+export function getDatasourceProvider(): string | undefined {
+  return globalDatasourceProvider;
+}
+
 /** Clear metadata (tests). */
 export function clearPrismaMeta(): void {
   globalPrismaMeta = null;
+  globalDatasourceProvider = undefined;
 }
 
 export function getPrismaMeta(): PrismaMetaRegistry | null {
@@ -304,6 +316,13 @@ export function loadPrismaMetaFromSchema(schemaPath?: string): PrismaMetaRegistr
   const models = getSchemaModels(schemaPath);
   const meta = buildPrismaMetaFromSchemaModels(models);
   setPrismaMeta(meta);
+  try {
+    const resolved =
+      schemaPath ?? path.join(process.cwd(), DEFAULT_SCHEMA_PATH);
+    setDatasourceProvider(parseDatasourceProvider(resolved));
+  } catch {
+    /* provider optional */
+  }
   return meta;
 }
 

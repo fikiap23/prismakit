@@ -24,6 +24,7 @@ Task Progress:
 - [ ] Production cache uses `RedisCacheAdapter` with a stable `prefix`
 - [ ] `cacheModels` is omitted (repo `cache` is source of truth), or lists every cached model if an allowlist is used
 - [ ] `validateCompose: true` is on for apps that nest relations in `select`
+- [ ] Cached repo classes are in feature `providers` (`strictCachedRepos` fails boot otherwise)
 
 ## Repository factory
 

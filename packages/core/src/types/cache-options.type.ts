@@ -4,8 +4,14 @@ export type CacheMethod =
   | 'getById'
   | 'getThrowById'
   | 'getFirst'
+  | 'getThrowFirst'
   | 'getMany'
-  | 'getManyPaginate';
+  | 'getManyPaginate'
+  | 'getManyCursor'
+  | 'count'
+  | 'exists'
+  | 'aggregate'
+  | 'groupBy';
 
 export interface CacheOptions {
   ttl?: number;
@@ -24,6 +30,11 @@ export interface CacheOptions {
    * Core passes this through; Redis adapter may honor it.
    */
   compression?: 'none' | 'zstd' | 'lz4';
+  /**
+   * When true, cache invalidation failures rethrow instead of fail-open.
+   * Prefer for write-heavy paths where stale reads are unacceptable.
+   */
+  strictInvalidation?: boolean;
 }
 
 /** Alias of {@link CacheOptions} (migration alias). */

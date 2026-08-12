@@ -18,6 +18,7 @@ pnpm test
 | `@prismakit/core` | `packages/core` |
 | `@prismakit/nestjs` | `packages/nestjs` |
 | `@prismakit/redis` | `packages/redis` |
+| `@prismakit/memory` | `packages/memory` |
 | `@prismakit/cli` | `packages/cli` |
 | `@prismakit/eslint-plugin` | `packages/eslint-plugin` |
 
@@ -34,7 +35,7 @@ Linked packages share one version (see `.changeset/config.json`).
 pnpm changeset
 ```
 
-Describe **user-facing** impact (not implementation details). All five linked packages usually bump together.
+Describe **user-facing** impact (not implementation details). All six linked packages usually bump together.
 
 ## Version & publish
 

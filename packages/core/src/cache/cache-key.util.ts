@@ -1,5 +1,11 @@
 import { stableHash } from './stable-hash.util';
 
+/**
+ * Cache key format version. Bump when the on-wire payload codec changes
+ * (e.g. Date/Decimal/Bytes tags) so legacy entries miss instead of deserializing wrong.
+ */
+export const CACHE_KEY_VERSION = 'v2';
+
 export function buildEntityKey(opts: {
   prefix: string;
   model: string;
@@ -8,7 +14,7 @@ export function buildEntityKey(opts: {
   select?: object;
 }): string {
   const selectHash = stableHash(opts.select ?? {});
-  return `${opts.prefix}:repo:${opts.model}:e:${opts.id}:${opts.method}:${selectHash}`;
+  return `${opts.prefix}:${CACHE_KEY_VERSION}:repo:${opts.model}:e:${opts.id}:${opts.method}:${selectHash}`;
 }
 
 export function buildQueryKey(opts: {
@@ -18,7 +24,7 @@ export function buildQueryKey(opts: {
   params: Record<string, unknown>;
 }): string {
   const queryHash = stableHash(opts.params);
-  return `${opts.prefix}:repo:${opts.model}:q:${opts.method}:${queryHash}`;
+  return `${opts.prefix}:${CACHE_KEY_VERSION}:repo:${opts.model}:q:${opts.method}:${queryHash}`;
 }
 
 export function entityIndexKey(
@@ -26,14 +32,22 @@ export function entityIndexKey(
   model: string,
   id: string,
 ): string {
-  return `${prefix}:repo:${model}:e:${id}:__idx`;
+  return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:e:${id}:__idx`;
 }
 
 /** Tracks all per-id entity index keys for a model (used by invalidate:'all'). */
 export function entityAllIndexKey(prefix: string, model: string): string {
-  return `${prefix}:repo:${model}:e:__idx`;
+  return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:e:__idx`;
 }
 
 export function queryIndexKey(prefix: string, model: string): string {
-  return `${prefix}:repo:${model}:q:__idx`;
+  return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:q:__idx`;
+}
+
+export function tagIndexKey(
+  prefix: string,
+  model: string,
+  tag: string,
+): string {
+  return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:t:${tag}:__idx`;
 }

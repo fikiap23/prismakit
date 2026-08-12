@@ -39,13 +39,22 @@ export type {
   TypeMapSelect,
   TypeMapCreateInput,
   TypeMapCreateManyInput,
+  TypeMapCreateManyAndReturnInput,
   TypeMapUpdateInput,
   TypeMapUpdateManyInput,
+  TypeMapUpdateManyAndReturnArgs,
   TypeMapWhereInput,
   TypeMapWhereUniqueInput,
   TypeMapOrderByInput,
+  TypeMapCountArgs,
+  TypeMapAggregateArgs,
+  TypeMapAggregateResult,
+  TypeMapGroupByArgs,
+  TypeMapGroupByResult,
+  TypeMapCursor,
   TypeMapGetPayload,
   CamelToPascal,
+  PascalToCamel,
 } from './types/prisma-typemap.type';
 
 // Cache
@@ -71,11 +80,13 @@ export {
   validateCacheConfig,
 } from './cache/validate-cache-config';
 export {
+  CACHE_KEY_VERSION,
   buildEntityKey,
   buildQueryKey,
   entityIndexKey,
   entityAllIndexKey,
   queryIndexKey,
+  tagIndexKey,
 } from './cache/cache-key.util';
 export { selectIncludesSensitiveField } from './cache/cache-guard.util';
 export { applyJitter } from './cache/ttl-jitter.util';
@@ -130,6 +141,7 @@ export type {
 // Schema
 export {
   parsePrismaSchema,
+  parseDatasourceProvider,
   getSchemaModels,
   findModelByTableName,
   findModelByName,
@@ -155,6 +167,8 @@ export {
   clearPrismaMeta,
   getPrismaMeta,
   getModelMeta,
+  getDatasourceProvider,
+  setDatasourceProvider,
   type PrismaMetaRegistry,
   type ModelMeta,
   type RelationMeta,
@@ -167,9 +181,20 @@ export {
 
 // Pagination
 export { paginator, type PaginateOptions, type PaginateFunction } from './pagination/paginator';
-export type { PaginatedResult } from './types/paginated-result.type';
+export type { CursorPage, PaginatedResult } from './types/paginated-result.type';
 /** @deprecated Use PaginatedResult */
 export type { PaginatedResult as IPaginatedResult } from './types/paginated-result.type';
+
+// Errors
+export {
+  PrismaKitError,
+  RecordNotFoundError,
+  UniqueConstraintError,
+  ForeignKeyError,
+  LockNotAvailableError,
+  UnsupportedProviderError,
+  wrapPrismaError,
+} from './errors';
 
 // Telemetry
 export {

@@ -1,5 +1,5 @@
 import type { InvalidateMode } from './cache-options.type';
-import type { PaginatedResult } from './paginated-result.type';
+import type { CursorPage, PaginatedResult } from './paginated-result.type';
 import type {
   ApplyRepoPayload,
   RepoPayloadHKT,
@@ -42,6 +42,8 @@ type InvalidateCacheMethod<THasCache extends boolean> = THasCache extends true
     }
   : {};
 
+type CountSelect = object;
+
 /**
  * Public repository method surface for the strong types-bag API.
  *
@@ -74,6 +76,15 @@ export type RepositoryApi<
     } & CacheMutation<unknown, THasCache>,
   ): Promise<{ count: number }>;
 
+  createManyAndReturn<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      data: TCreateInput[];
+      select?: T;
+      skipDuplicates?: boolean;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>[], THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>[]>;
+
   getById<T extends TSelect>(
     params: {
       id: string | Record<string, string>;
@@ -101,6 +112,16 @@ export type RepositoryApi<
     } & CacheQueryRead<TWhereInput, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T> | null>;
 
+  getThrowFirst<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: T;
+      orderBy?: TOrderBy;
+      lock?: RowLockOptions;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
+
   getMany<T extends TSelect>(
     args: {
       tx?: ClientLike;
@@ -124,6 +145,57 @@ export type RepositoryApi<
     } & CacheQueryRead<TWhereInput, THasCache>,
   ): Promise<PaginatedResult<ApplyRepoPayload<TPayload, T>>>;
 
+  getManyCursor<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: T;
+      orderBy?: TOrderBy;
+      cursor?: unknown;
+      take?: number;
+      skip?: number;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<CursorPage<ApplyRepoPayload<TPayload, T>>>;
+
+  count(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+      select?: CountSelect;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<number>;
+
+  exists(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+    } & CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<boolean>;
+
+  aggregate(
+    args: {
+      tx?: ClientLike;
+      where?: TWhereInput;
+    } & Record<string, unknown> &
+      CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<unknown>;
+
+  groupBy(
+    args: {
+      tx?: ClientLike;
+    } & Record<string, unknown> &
+      CacheQueryRead<TWhereInput, THasCache>,
+  ): Promise<unknown>;
+
+  update<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
+      data: TUpdateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
+
   updateById<T extends TSelect>(
     args: {
       tx?: ClientLike;
@@ -141,12 +213,42 @@ export type RepositoryApi<
     } & CacheMutation<unknown, THasCache>,
   ): Promise<{ count: number }>;
 
+  updateManyAndReturn<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
+      data: TUpdateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>[], THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>[]>;
+
   upsert<T extends TSelect>(
     args: {
       tx?: ClientLike;
       where: TWhereInput;
       create: TCreateInput;
       update: TUpdateInput;
+      select?: T;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>>;
+
+  upsertMany<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      items: Array<{
+        where: TWhereInput;
+        create: TCreateInput;
+        update: TUpdateInput;
+      }>;
+      select?: T;
+      chunkSize?: number;
+    } & CacheMutation<ApplyRepoPayload<TPayload, T>[], THasCache>,
+  ): Promise<ApplyRepoPayload<TPayload, T>[]>;
+
+  delete<T extends TSelect>(
+    args: {
+      tx?: ClientLike;
+      where: TWhereInput;
       select?: T;
     } & CacheMutation<ApplyRepoPayload<TPayload, T>, THasCache>,
   ): Promise<ApplyRepoPayload<TPayload, T>>;
@@ -165,6 +267,20 @@ export type RepositoryApi<
       where: TWhereInput;
     } & CacheMutation<unknown, THasCache>,
   ): Promise<{ count: number }>;
+
+  queryRaw<T = unknown>(args: {
+    tx?: ClientLike;
+    sql: TemplateStringsArray | string;
+    values?: unknown[];
+  }): Promise<T>;
+
+  executeRaw(
+    args: {
+      tx?: ClientLike;
+      sql: TemplateStringsArray | string;
+      values?: unknown[];
+    } & CacheMutation<unknown, THasCache>,
+  ): Promise<number>;
 } & InvalidateCacheMethod<THasCache>;
 
 /** Repository API derived from a {@link RepoTypesDefinition} bag. */

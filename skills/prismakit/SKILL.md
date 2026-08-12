@@ -52,6 +52,9 @@ Helpers may inject repositories — never the Prisma client.
 | Existence / uniqueness / auth | `getFirst` — **no** `setCache` |
 | List | `getMany` + `setCache: true` + optional `cacheTags` |
 | Paginated list | `getManyPaginate` |
+| Large / infinite list | `getManyCursor` |
+| Count / exists check | `count` / `exists` (no `setCache` on auth paths) |
+| Aggregations | `aggregate` / `groupBy` |
 | Create / update / delete | matching mutation; default invalidation is enough outside tx |
 | Multi-step write | one transaction; pass `tx` into every repo call |
 | `SELECT … FOR UPDATE` | `lock: { mode: 'update' }` **inside** `tx` |
@@ -117,6 +120,9 @@ await users.getFirst({
 | `getFirst` | first match or `null` |
 | `getMany` | array (`take` / `skip` / `orderBy`) |
 | `getManyPaginate` | `{ data, meta: { page, pageSize, totalItems, totalPages } }` |
+| `getManyCursor` | `{ data, nextCursor, hasMore }` |
+| `count` / `exists` | `{ count }` / `{ exists }` |
+| `aggregate` / `groupBy` | Prisma delegate results |
 
 `id` is `string` or `Record<string, string>` for composite PKs.
 

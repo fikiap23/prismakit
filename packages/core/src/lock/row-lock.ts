@@ -3,6 +3,8 @@ import {
   RowLockMode,
   RowLockOptions,
 } from '../types/row-lock-options.type';
+import { UnsupportedProviderError } from '../errors';
+import { getDatasourceProvider } from '../schema/prisma-meta';
 
 const LOCK_MODE_SQL: Record<RowLockMode, string> = {
   update: 'FOR UPDATE',
@@ -71,6 +73,17 @@ export function assertLockPrerequisites(
   if (!lockConfig?.tableName) {
     throw new Error(
       'Row lock is not enabled for this repository. Add lock config to createPrismaRepository options.',
+    );
+  }
+  const provider = getDatasourceProvider();
+  if (
+    provider &&
+    provider !== 'postgresql' &&
+    provider !== 'postgres'
+  ) {
+    throw new UnsupportedProviderError(
+      `Row locks (FOR UPDATE / SKIP LOCKED) require PostgreSQL; datasource provider is "${provider}"`,
+      { provider, feature: 'row-lock' },
     );
   }
 }

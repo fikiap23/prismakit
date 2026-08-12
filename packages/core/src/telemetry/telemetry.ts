@@ -4,11 +4,17 @@
  */
 
 export type CacheTelemetryEvent = {
-  type: 'cache.hit' | 'cache.miss' | 'cache.bypass' | 'cache.invalidate';
+  type:
+    | 'cache.hit'
+    | 'cache.miss'
+    | 'cache.bypass'
+    | 'cache.invalidate'
+    | 'cache.error';
   model?: string;
   method?: string;
   detail?: string;
   durationMs?: number;
+  error?: unknown;
 };
 
 export type ComposeTelemetryEvent = {

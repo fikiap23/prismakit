@@ -233,9 +233,70 @@ function createDelegate(
       return { count: before - store.rows.length };
     },
 
-    async count(args: { where?: Row } = {}) {
+    async count(args: { where?: Row; take?: number } = {}) {
       calls.push({ model, method: 'count', args: args as Row });
-      return store.rows.filter((r) => matchWhere(r, args.where)).length;
+      const rows = store.rows.filter((r) => matchWhere(r, args.where));
+      if (typeof args.take === 'number') return Math.min(rows.length, args.take);
+      return rows.length;
+    },
+
+    async findFirstOrThrow(args: {
+      where?: Row;
+      select?: Row;
+      orderBy?: unknown;
+    } = {}) {
+      calls.push({ model, method: 'findFirstOrThrow', args: args as Row });
+      const rows = applyOrderBy(
+        store.rows.filter((r) => matchWhere(r, args.where)),
+        args.orderBy,
+      );
+      const row = rows[0];
+      if (!row) {
+        const err = new Error(`No ${model} found`);
+        (err as any).code = 'P2025';
+        throw err;
+      }
+      return project(row, args.select);
+    },
+
+    async aggregate(args: Row = {}) {
+      calls.push({ model, method: 'aggregate', args });
+      const where = (args as { where?: Row }).where;
+      const rows = store.rows.filter((r) => matchWhere(r, where));
+      return { _count: { _all: rows.length } };
+    },
+
+    async groupBy(args: Row = {}) {
+      calls.push({ model, method: 'groupBy', args });
+      return [];
+    },
+
+    async createManyAndReturn(args: {
+      data: Row | Row[];
+      select?: Row;
+      skipDuplicates?: boolean;
+    }) {
+      calls.push({ model, method: 'createManyAndReturn', args: args as Row });
+      const list = Array.isArray(args.data) ? args.data : [args.data];
+      const created = list.map((d) => ({ ...d }));
+      store.rows.push(...created);
+      return created.map((r) => project(r, args.select));
+    },
+
+    async updateManyAndReturn(args: {
+      where: Row;
+      data: Row;
+      select?: Row;
+    }) {
+      calls.push({ model, method: 'updateManyAndReturn', args: args as Row });
+      const updated: Row[] = [];
+      store.rows = store.rows.map((r) => {
+        if (!matchWhere(r, args.where)) return r;
+        const next = { ...r, ...args.data };
+        updated.push(next);
+        return next;
+      });
+      return updated.map((r) => project(r, args.select));
     },
   };
 }
@@ -276,6 +337,16 @@ export function createFakePrisma(
           return (await options.onRaw(sql, values)) as T;
         }
         return [] as T;
+      },
+      async $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<number> {
+        rawCalls.push({ sql, values });
+        return 0;
+      },
+      async $queryRaw(sql: TemplateStringsArray, ...values: unknown[]) {
+        return this.$queryRawUnsafe(String(sql), ...values);
+      },
+      async $executeRaw(sql: TemplateStringsArray, ...values: unknown[]) {
+        return this.$executeRawUnsafe(String(sql), ...values);
       },
       async $transaction<T>(
         fn: (tx: FakePrismaClient) => Promise<T>,

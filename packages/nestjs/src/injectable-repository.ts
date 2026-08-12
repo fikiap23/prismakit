@@ -43,7 +43,6 @@ import { PRISMAKIT_CACHE, PRISMAKIT_PRISMA } from './tokens';
  *
  * export const UserRepository = createInjectableRepository<UserTypes>({
  *   model: 'user',
- *   scalarFields: Prisma.UserScalarFieldEnum,
  *   cache: { ttl: 86400 },
  *   lock: 'users',
  * });
@@ -110,7 +109,10 @@ export function createInjectableRepository(
     }
   }
 
-  markPrismakitRepo(NestRepository);
+  markPrismakitRepo(NestRepository, {
+    model: typeof options.model === 'string' ? options.model : undefined,
+    hasCache: options.cache != null,
+  });
 
   // Overload signatures own the public type; do not re-derive from NestRepository
   // (that erases generics and surfaces as `any` in IDEs).

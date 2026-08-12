@@ -55,7 +55,11 @@ const user = await users.getThrowById({
 |--------|---------|
 | `getById` / `getThrowById` | Read by id (`setCache?`, `lock?`, `tx?`) |
 | `getFirst` / `getMany` / `getManyPaginate` | Queries |
-| `create` / `updateById` / `deleteById` | Writes (`invalidate`, optional `tags`) |
+| `getManyCursor` | Cursor pagination (`CursorPage<T>`) |
+| `count` / `exists` | `{ count }` / `{ exists }` |
+| `aggregate` / `groupBy` | Prisma aggregate delegates |
+| `create` / `updateById` / `deleteById` | Writes by id (`invalidate`, optional `tags`) |
+| `updateMany` / `deleteMany` | Bulk writes by `where` |
 | `invalidateCache` | Manual cache clear |
 
 Cache runs **only** when you pass `setCache: true` and the repo has `cache` config. Never cache auth / uniqueness lookups.

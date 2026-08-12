@@ -57,6 +57,12 @@ export class MemoryCacheAdapter implements CacheAdapter {
       const first = this.store.keys().next().value;
       if (first === undefined) break;
       this.store.delete(first);
+      // Drop dangling index members pointing at the evicted key
+      for (const [idxKey, set] of this.sets) {
+        if (set.delete(first) && set.size === 0) {
+          this.sets.delete(idxKey);
+        }
+      }
     }
   }
 

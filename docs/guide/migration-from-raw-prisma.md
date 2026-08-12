@@ -27,6 +27,10 @@ Wire `PrismaKitModule.forRoot({ prisma, cache?, cacheModels? })` (Nest) or const
 | `prisma.user.delete({ where: { id } })` | `users.deleteById({ id })` |
 | `prisma.user.createMany({ data })` | `users.createMany({ data })` |
 | `prisma.user.updateMany({ where, data })` | `users.updateMany({ where, data })` |
+| `prisma.user.deleteMany({ where })` | `users.deleteMany({ where })` |
+| `prisma.user.count({ where })` | `users.count({ where })` |
+| `prisma.user.aggregate({ … })` | `users.aggregate({ … })` |
+| `prisma.user.groupBy({ … })` | `users.groupBy({ … })` |
 
 Create the repo once:
 
