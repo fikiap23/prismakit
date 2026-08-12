@@ -196,8 +196,8 @@ Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). Pass 
 | `validateCompose: true` | Assert compose-safe selects on boot |
 | `strictCachedRepos` | Fail boot if a `cache` repo class is not in Nest `providers` (default `true`) |
 | `compose` | `{ maxDepth, parallel, setCache }` |
-| `telemetry` | `{ enabled: true, onEvent }` |
-| `queryLog` | `{ slowThreshold, onSlowQuery }` — enables telemetry |
+| `telemetry` | `{ enabled: true, onEvent }` or `createPrismaKitTelemetry()` from `@prismakit/opentelemetry` |
+| `queryLog` | `{ slowThreshold, onSlowQuery }` — enables telemetry / `query.slow` |
 | `autoRegisterModels` | `true` or `string[]` — stub repos for compose-only models |
 
 ## Scaffolding
@@ -205,11 +205,14 @@ Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). Pass 
 ```bash
 npx prismakit generate product --cache
 npx prismakit generate product --cache --full --route products
+npx prismakit skills   # refresh .cursor/skills after upgrades
 ```
 
 Repo-only: add the class to feature `providers`. `--full`: import `*Module` in `AppModule`. Then `npx prismakit validate`.
 
 Enable ESLint `prismakit.configs.recommended` (see skill `prismakit`).
+
+Reference app: [starter-prismakit-nestjs](https://github.com/fikiap23/starter-prismakit-nestjs) (Nest 11 + Prisma 7 + Redis).
 
 ## Clean code (Nest)
 

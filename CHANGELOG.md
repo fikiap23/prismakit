@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Per-package changelogs under `packages/*/CHANGELOG.md` are the source of truth for patch/minor notes after 3.0. This root file tracks major theme releases.
 
+## [3.2.0]
+
+### Added
+- Real **Postgres + Redis** integration suites: common CRUD/cache/paginate/cursor/bulk/composite PK, smoke-equivalent compose, Nest repo-level `FOR UPDATE` / `NOWAIT` / `SKIP LOCKED`, edge cases (`nullTtl`, `sensitiveFields`, `cacheTags`, stampede coalesce, Redis fail-open)
+- CI `FORCE_INTEGRATION=1` + Turbo `passThroughEnv` so integration suites cannot silently skip
+- `@prismakit/opentelemetry` — map telemetry events to OpenTelemetry metrics/spans
+- `query.slow` telemetry + Nest `queryLog.slowThreshold`
+- Production guide + Nest starter as Prisma 7 reference architecture
+
+### Fixed
+- Composite primary key `findUnique` where shape for Prisma 6+ (`{ a_b: { a, b } }` instead of flat fields)
+- `getManyCursor` defaults `skip: 1` when a cursor is provided (Prisma cursors are inclusive)
+
 ## [3.1.0]
 
 ### Added

@@ -8,6 +8,8 @@ Adopt PrismaKit incrementally. Pick the guide that matches your starting point:
 | Prisma `$extends` client extensions | [Migration from prisma extends](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-from-prisma-extends.md) |
 | TypeORM | [Migration from TypeORM](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-from-typeorm.md) |
 | PrismaKit 2.x | [Migration to 3.0](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.md) |
+| PrismaKit 3.0.x | [Upgrade to 3.1](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.1.md) |
+| PrismaKit 3.1.x | [Upgrade to 3.2](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.2.md) |
 
 ## Suggested order
 

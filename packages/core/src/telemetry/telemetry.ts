@@ -1,6 +1,6 @@
 /**
  * Built-in telemetry for PrismaKit — cache, compose, lock, stampede events.
- * Consumers wire `onEvent` via module options or `setTelemetryHandler`.
+ * Consumers wire `onEvent` via module options or `setTelemetry`.
  */
 
 export type CacheTelemetryEvent = {
@@ -61,18 +61,32 @@ export type TelemetryHandler = (event: TelemetryEvent) => void;
 export type TelemetryOptions = {
   enabled?: boolean;
   onEvent?: TelemetryHandler;
+  /**
+   * When set, repository queries that take at least this many ms also emit
+   * `query.slow` (in addition to `query.complete`).
+   */
+  slowThreshold?: number;
 };
 
 let handler: TelemetryHandler | undefined;
 let enabled = false;
+let slowThresholdMs: number | undefined;
 
 export function setTelemetry(options: TelemetryOptions | undefined): void {
   enabled = options?.enabled === true;
   handler = options?.onEvent;
+  slowThresholdMs =
+    typeof options?.slowThreshold === 'number' && options.slowThreshold > 0
+      ? options.slowThreshold
+      : undefined;
 }
 
 export function getTelemetryEnabled(): boolean {
   return enabled && !!handler;
+}
+
+export function getTelemetrySlowThreshold(): number | undefined {
+  return slowThresholdMs;
 }
 
 export function emitTelemetry(event: TelemetryEvent): void {

@@ -42,6 +42,16 @@ function matchWhere(row: Row, where?: Record<string, unknown>): boolean {
         if (row[key] === obj.not) return false;
         continue;
       }
+      // Prisma compound unique: { tenantId_orderNo: { tenantId, orderNo } }
+      if (
+        Object.keys(obj).length > 0 &&
+        Object.values(obj).every(
+          (v) => v === null || typeof v !== 'object',
+        )
+      ) {
+        if (!matchWhere(row, obj)) return false;
+        continue;
+      }
       // unknown filter shape — treat as equality on nested fields not supported
       return false;
     }

@@ -1,12 +1,23 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { RedisCacheAdapter } from '../redis-cache-adapter';
 
-const hasRedis = Boolean(process.env.REDIS_URL);
+function requireRedisUrl(): string | undefined {
+  const value = process.env.REDIS_URL;
+  if (value) return value;
+  if (process.env.FORCE_INTEGRATION === '1' || process.env.CI === 'true') {
+    throw new Error(
+      '[PrismaKit] REDIS_URL is required for integration tests when CI=true or FORCE_INTEGRATION=1',
+    );
+  }
+  return undefined;
+}
 
-describe.skipIf(!hasRedis)('RedisCacheAdapter (integration)', () => {
+const redisUrl = requireRedisUrl();
+
+describe.skipIf(!redisUrl)('RedisCacheAdapter (integration)', () => {
   const prefix = `pk-it-${Date.now()}`;
   const adapter = new RedisCacheAdapter({
-    url: process.env.REDIS_URL,
+    url: redisUrl,
     prefix,
   });
 

@@ -74,5 +74,6 @@ export {
   loadPrismaMetaFromSchema,
   setComposeOptions,
   setTelemetry,
+  getTelemetrySlowThreshold,
   type PrismaDmmfLike,
 } from '@prismakit/core';

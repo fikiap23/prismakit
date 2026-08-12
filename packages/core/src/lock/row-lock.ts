@@ -3,7 +3,7 @@ import {
   RowLockMode,
   RowLockOptions,
 } from '../types/row-lock-options.type';
-import { UnsupportedProviderError } from '../errors';
+import { UnsupportedProviderError, wrapPrismaError } from '../errors';
 import { getDatasourceProvider } from '../schema/prisma-meta';
 
 const LOCK_MODE_SQL: Record<RowLockMode, string> = {
@@ -241,10 +241,14 @@ export async function queryRowsForUpdate(
     values.push(take);
   }
 
-  const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
-    sql,
-    ...values,
-  );
-
-  return rows.map((row) => mapDbRowToPrisma(row, columnMap));
+  try {
+    const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
+      sql,
+      ...values,
+    );
+    return rows.map((row) => mapDbRowToPrisma(row, columnMap));
+  } catch (err) {
+    wrapPrismaError(err);
+    throw err;
+  }
 }

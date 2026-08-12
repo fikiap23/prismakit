@@ -1,11 +1,11 @@
 # AGENTS.md — PrismaKit
 
-Short contract for AI coding agents and humans. Prefer the full guides under [`docs/`](README.md) when implementing features.
+Short contract for AI coding agents and humans. Prefer the full guides under [`docs/`](README.md) when implementing features. Current line: **3.2.x**.
 
 ## Architecture
 
 ```
-Controller → Service → Repository → Prisma / CacheAdapter
+Controller → Service → Helper → Repository → Prisma / CacheAdapter
 ```
 
 | Layer | Responsibility |
@@ -15,48 +15,36 @@ Controller → Service → Repository → Prisma / CacheAdapter
 | **Helper** | Validate, map, guard — repositories only |
 | **Repository** | Only layer that talks to Prisma |
 
-## Creating a repository
+## Creating a repository (Nest)
+
+Bind `Prisma.TypeMap` once, then define repos with runtime options:
 
 ```typescript
-import { Prisma } from '@prisma/client';
-import {
-  createInjectableRepository,
-  type RepoPayloadHKT,
-} from '@prismakit/nestjs';
+// src/infrastructure/prisma/define-app-repo.ts
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client'; // or generated client path
 
-type FeaturePayloadOf<S> = S extends Prisma.FeatureSelect
-  ? Prisma.FeatureGetPayload<{ select: S }>
-  : never;
-
-interface FeaturePayloadHKT extends RepoPayloadHKT {
-  type(): FeaturePayloadOf<this['_select']>;
-}
-
-type FeatureTypes = {
-  select: Prisma.FeatureSelect;
-  create: Prisma.FeatureCreateInput;
-  update: Prisma.FeatureUpdateInput;
-  where: Prisma.FeatureWhereInput;
-  orderBy: Prisma.FeatureOrderByWithRelationInput;
-  payload: FeaturePayloadHKT;
-};
-
-export const FeatureRepository = createInjectableRepository<FeatureTypes>({
-  model: 'feature',
-  scalarFields: Prisma.FeatureScalarFieldEnum,
-  cache: { ttl: 60 * 60 * 24 },
-  lock: 'features',
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
+  schemaPath: 'prisma/schema.prisma',
 });
 ```
 
-Types bag (`payload` HKT) keeps `GetPayload` precision without a runtime `toPayload`.
-`getDelegate` defaults from `model`.
-
-Optional allowlist:
-
 ```typescript
-PrismaKitModule.forRoot({ prisma, cache, cacheModels: ['user', 'feature'] });
+// user.repository.ts
+import { Prisma } from '@prisma/client';
+import { defineAppRepo } from '../../../infrastructure/prisma/define-app-repo';
+
+export class UserRepository extends defineAppRepo({
+  model: 'user',
+  cache: { sensitiveFields: ['password'] },
+  lock: true,
+}) {}
 ```
+
+Register the class in the feature module `providers`. Never inject `PrismaClient` / `PrismaService` into services.
+
+Plain Node: `createRepository` from `@prismakit/core`.
 
 ## Transactions
 
@@ -77,17 +65,23 @@ await this.tx.execTx(
 - `general` — API responses (`setCache: true` OK)
 - `withPassword` — auth only (never cached)
 
+## Composite PK / cursor
+
+- Composite id: `{ postId, tagId }` object — kit maps to Prisma `a_b: { a, b }`
+- `getManyCursor` with `cursor` defaults `skip: 1` (non-inclusive next page)
+
 ## CLI
 
 ```bash
 npx prismakit generate <name> --cache
 npx prismakit generate <name> --cache --full
 npx prismakit validate --auto-register
+npx prismakit skills
 ```
 
 ## Enforcement
 
-1. [RULES.md](RULES.md) · [getting-started](getting-started.md) · [guides](README.md)
+1. [RULES.md](RULES.md) · [Production](guide/production.md) · [getting-started](getting-started.md)
 2. ESLint: `@prismakit/eslint-plugin`
 3. Runtime: lock/cache validation at repository init
 

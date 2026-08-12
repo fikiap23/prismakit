@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/core",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Prisma repository factory with cache-aside, auto-compose, and row locks",
   "license": "Apache-2.0",
   "engines": {
@@ -40,8 +40,11 @@
   },
   "devDependencies": {
     "@prisma/client": "^6.5.0",
-    "typescript": "^5.9.2",
+    "@types/pg": "^8.21.0",
+    "pg": "^8.23.0",
+    "prisma": "^6.5.0",
     "tsup": "^8.4.0",
+    "typescript": "^5.9.2",
     "vitest": "^3.0.8"
   },
   "publishConfig": {

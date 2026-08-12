@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/example-smoke-test",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Real Prisma + PrismaKit smoke test (SQLite, no Docker)",
   "license": "Apache-2.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "prisma:push": "DATABASE_URL=\"file:./dev.db\" prisma db push --skip-generate",
     "db:reset-file": "rm -f prisma/dev.db prisma/dev.db-journal",
     "db:ready": "pnpm prisma:generate && pnpm db:reset-file && pnpm prisma:push",
-    "smoke": "tsx src/smoke.ts",
+    "smoke": "DATABASE_URL=\"file:./dev.db\" tsx src/smoke.ts",
     "test": "pnpm db:ready && pnpm smoke",
     "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit"
   },

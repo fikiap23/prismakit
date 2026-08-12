@@ -210,7 +210,9 @@ model ProductTag {
       id: { productId: 'p1', tagId: 't1' },
       select: { productId: true, tagId: true },
     });
-    expect(where).toEqual({ productId: 'p1', tagId: 't1' });
+    expect(where).toEqual({
+      productId_tagId: { productId: 'p1', tagId: 't1' },
+    });
 
     clearPrismaMeta();
     fs.rmSync(dir, { recursive: true, force: true });

@@ -129,18 +129,18 @@ function wireTelemetry(options: PrismaKitModuleOptions): void {
 
   setTelemetry({
     enabled: true,
+    slowThreshold:
+      queryLog !== undefined
+        ? threshold
+        : options.telemetry?.slowThreshold,
     onEvent: (event: TelemetryEvent) => {
       userHandler?.(event);
-      if (
-        queryLog?.onSlowQuery &&
-        event.type === 'query.complete' &&
-        event.durationMs >= threshold
-      ) {
+      if (queryLog?.onSlowQuery && event.type === 'query.slow') {
         queryLog.onSlowQuery({
           model: event.model,
           method: event.method,
           durationMs: event.durationMs,
-          thresholdMs: threshold,
+          thresholdMs: event.thresholdMs ?? threshold,
         });
       }
     },

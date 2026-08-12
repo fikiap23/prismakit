@@ -34,6 +34,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      CI: 'true'
+      FORCE_INTEGRATION: '1'
       DATABASE_URL: postgresql://prismakit:prismakit@localhost:5432/prismakit
       REDIS_URL: redis://localhost:6379
     steps:

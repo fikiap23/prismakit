@@ -1,5 +1,14 @@
 # @prismakit/example-express
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @prismakit/core@3.2.0
+  - @prismakit/memory@3.2.0
+
 ## 0.0.4
 
 ### Patch Changes

@@ -17,30 +17,28 @@ Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 | [`@prismakit/redis`](https://www.npmjs.com/package/@prismakit/redis) | Redis `CacheAdapter` |
 | [`@prismakit/memory`](https://www.npmjs.com/package/@prismakit/memory) | In-memory `CacheAdapter` (tests / local) |
 | [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | `PrismaKitModule`, `TransactionService`, injectable repositories |
+| [`@prismakit/opentelemetry`](https://www.npmjs.com/package/@prismakit/opentelemetry) | Map telemetry events to OpenTelemetry metrics/spans |
 | [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | `prismakit generate / validate / skills` |
 | [`@prismakit/eslint-plugin`](https://www.npmjs.com/package/@prismakit/eslint-plugin) | Enforce repository-only data access |
 
-## What's new in 3.0
+## What's new in 3.2
 
 | Area | Highlights |
 |------|------------|
-| **Schema-only compose** | Relation fields resolve from schema / DMMF meta. Alias maps and `prismakit codegen` are gone |
-| **TypeMap parity** | `createDefineRepo` types include `createMany` / `updateMany` / `upsert` / `deleteMany` and `lock` on `getFirst` |
-| **Default schemaPath** | `prisma/schema.prisma` when `dmmf` is omitted |
-| **Self-loading validate** | `prismakit validate --auto-register` needs no alias file |
+| **Real PG + Redis ITs** | CRUD, compose, repo locks, nullTtl/tags/stampede/fail-open, Nest `execTx` — against Postgres 16 + Redis 7 in CI (`FORCE_INTEGRATION=1`) |
+| **Composite PK** | `*ById` uses Prisma compound unique shape (`a_b: { a, b }`) |
+| **Cursor pages** | `getManyCursor` defaults `skip: 1` when a cursor is set (Prisma cursor is inclusive) |
+| **OpenTelemetry** | `@prismakit/opentelemetry` maps kit events to metrics/spans; `query.slow` + `slowThreshold` |
+| **Production guide** | Supported matrix, starter reference, ops checklist |
 
-See [migration to 3.0](docs/guide/migration-to-3.md).
+See [upgrade to 3.2](docs/guide/migration-to-3.2.md) · [Production](docs/guide/production.md).
 
-## What's new in 2.2
+## What's new in 3.1 / 3.0
 
-| Area | Highlights |
+| Line | Highlights |
 |------|------------|
-| **Smarter compose** | Compose options (`maxDepth`, parallel), PK injection for nested selects, schema/DMMF-aware FKs |
-| **Stampede v2** | Tunable lock TTL, retries, and backoff; in-process `singleflight` |
-| **Bulk ops** | `createMany` / `updateMany` on repositories |
-| **Composite PK** | `primaryKey: string[]` for `*ById` and row locks |
-| **Telemetry** | `setTelemetry` / module `telemetry` for cache, compose, lock, stampede events |
-| **Memory adapter** | `@prismakit/memory` — drop-in `MemoryCacheAdapter` without Redis |
+| **3.1** | Full method parity (`count`/`exists`/`aggregate`/`groupBy`/`getManyCursor`), typed errors, Redis Date/BigInt codec, `defineAppRepo` cache defaults — [migration](docs/guide/migration-to-3.1.md) |
+| **3.0** | Schema-only compose (no alias maps), TypeMap bulk ops, default `schemaPath` — [migration](docs/guide/migration-to-3.md) |
 
 ## Quick start
 
@@ -87,11 +85,12 @@ Full walkthrough: [Getting started](docs/getting-started.md).
 | Migrate from raw Prisma | [docs/guide/migration-from-raw-prisma.md](docs/guide/migration-from-raw-prisma.md) |
 | Migrate from `$extends` | [docs/guide/migration-from-prisma-extends.md](docs/guide/migration-from-prisma-extends.md) |
 | Migrate from TypeORM | [docs/guide/migration-from-typeorm.md](docs/guide/migration-from-typeorm.md) |
+| Production | [docs/guide/production.md](docs/guide/production.md) |
+| NestJS starter | [starter-prismakit-nestjs](https://github.com/fikiap23/starter-prismakit-nestjs) (Nest 11 + Prisma 7 + Redis + MinIO) |
 | CLI | [docs/reference/cli.md](docs/reference/cli.md) |
 | ESLint | [docs/reference/eslint.md](docs/reference/eslint.md) |
 | Rules (required) | [docs/RULES.md](docs/RULES.md) |
 | Cursor skills | [skills/](skills/) (`npx prismakit skills`) |
-| NestJS starter | sibling repo `starter-prismakit-nestjs` (Nest 11 + Prisma 7 + MinIO presign) |
 
 **Forbidden:** inject `PrismaClient` / call `prisma.model.*` outside `repositories/`.
 

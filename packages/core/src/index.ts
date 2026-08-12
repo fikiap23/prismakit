@@ -200,6 +200,7 @@ export {
 export {
   setTelemetry,
   getTelemetryEnabled,
+  getTelemetrySlowThreshold,
   emitTelemetry,
   type TelemetryEvent,
   type TelemetryHandler,

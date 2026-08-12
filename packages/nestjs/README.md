@@ -51,9 +51,13 @@ Register `UserRepository` in a feature module `providers`.
 | `cacheModels` | Optional extra allowlist (omit — repo `cache` is enough) |
 | `validateCompose` | Run compose validation on boot |
 | `strictCachedRepos` | Fail boot if a cached repo is missing from `providers`, or listed in two modules (scans source; default `true`) |
-| `schemaPath` | Path to `schema.prisma` for lock helpers |
+| `schemaPath` | Path to `schema.prisma` for lock/compose meta (default `prisma/schema.prisma`) |
+| `compose` | `{ maxDepth, parallel, setCache }` |
+| `telemetry` | Kit events / `@prismakit/opentelemetry` |
+| `queryLog` | `{ slowThreshold }` → `query.slow` |
+| `autoRegisterModels` | Stub repos for compose-only models |
 
-Also supports `PrismaKitModule.forRootAsync`.
+Also supports `PrismaKitModule.forRootAsync`. Prefer `createDefineRepo` / app `defineAppRepo` binder over ad-hoc `createInjectableRepository` in large apps.
 
 ## Transactions
 

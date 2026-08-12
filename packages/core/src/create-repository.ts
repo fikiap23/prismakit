@@ -49,7 +49,7 @@ import { splitSelect } from './utils/split-select';
 import { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
 import { RepositoryRegistry } from './repository-registry';
 import { ensurePrismaMeta, getModelMeta, getPrismaMeta } from './schema/prisma-meta';
-import { emitTelemetry } from './telemetry/telemetry';
+import { emitTelemetry, getTelemetrySlowThreshold } from './telemetry/telemetry';
 import type { ComposeOptions } from './compose/compose-options';
 import { wrapPrismaError, RecordNotFoundError } from './errors';
 import type { CursorPage } from './types/paginated-result.type';
@@ -205,14 +205,25 @@ function resolvePrimaryKey(
 function idWhere(
   primaryKey: string | string[],
   id: string | Record<string, string>,
-): Record<string, string> {
+): Record<string, unknown> {
   if (Array.isArray(primaryKey)) {
     if (typeof id === 'string') {
       throw new Error(
         `[createRepository] composite primaryKey [${primaryKey.join(', ')}] requires id as object`,
       );
     }
-    return { ...id };
+    // Prisma WhereUniqueInput for @@id([a,b]) is `{ a_b: { a, b } }`.
+    const compound = primaryKey.join('_');
+    const compoundValue: Record<string, string> = {};
+    for (const key of primaryKey) {
+      if (id[key] === undefined) {
+        throw new Error(
+          `[createRepository] composite id missing field "${key}" for primaryKey [${primaryKey.join(', ')}]`,
+        );
+      }
+      compoundValue[key] = id[key];
+    }
+    return { [compound]: compoundValue };
   }
   if (typeof id === 'object') {
     return id;
@@ -832,6 +843,16 @@ function createRepositoryImpl<
         method,
         durationMs,
       });
+      const threshold = getTelemetrySlowThreshold();
+      if (threshold != null && durationMs >= threshold) {
+        emitTelemetry({
+          type: 'query.slow',
+          model: modelName,
+          method,
+          durationMs,
+          thresholdMs: threshold,
+        });
+      }
       return result;
     });
   }
@@ -2102,8 +2123,23 @@ function createRepositoryImpl<
             orderBy,
             take: fetchCount,
           };
-          if (cursor) findManyArgs.cursor = cursor;
-          if (skip) findManyArgs.skip = skip;
+          if (cursor !== undefined && cursor !== null) {
+            // Normalize scalar nextCursor back into Prisma cursor object.
+            if (
+              typeof cursor !== 'object' ||
+              cursor === null ||
+              Array.isArray(cursor)
+            ) {
+              const pk = Array.isArray(primaryKey) ? primaryKey[0] : primaryKey;
+              findManyArgs.cursor = { [pk]: cursor };
+            } else {
+              findManyArgs.cursor = cursor;
+            }
+            // Prisma cursor is inclusive — skip the cursor row by default.
+            findManyArgs.skip = skip ?? 1;
+          } else if (skip) {
+            findManyArgs.skip = skip;
+          }
 
           const rows = await timedQuery('getManyCursor', () =>
             getModel(this.deps.prisma, tx).findMany(findManyArgs),

@@ -19,8 +19,9 @@ It mirrors these guides with shorter summaries and links back here for the full 
 ## Start here
 
 1. [Getting started](getting-started.md) — install and first repository
-2. [Architecture & rules](RULES.md) — what you must / must not do
-3. [Repository guide](guide/repository.md) — options and methods
+2. [Production](guide/production.md) — matrix, safety rules, checklist
+3. [Architecture & rules](RULES.md) — what you must / must not do
+4. [Repository guide](guide/repository.md) — options and methods
 
 ## Guides
 
@@ -33,10 +34,13 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | [Locks](guide/locks.md) | `SELECT … FOR UPDATE` inside transactions |
 | [Transactions](guide/transactions.md) | `execTx` + cache invalidation after commit |
 | [Telemetry](guide/telemetry.md) | Metrics events for cache, compose, locks, queries |
+| [Production](guide/production.md) | Supported matrix, cache/tx rules, checklist, starter reference |
 | [From raw Prisma](guide/migration-from-raw-prisma.md) | Migrate findUnique / $transaction → repositories |
 | [From Prisma `$extends`](guide/migration-from-prisma-extends.md) | When to prefer PrismaKit |
 | [From TypeORM](guide/migration-from-typeorm.md) | Repository / EntityManager mapping |
 | [2.x → 3.0](guide/migration-to-3.md) | Relation aliases removed; TypeMap bulk ops |
+| [3.0 → 3.1](guide/migration-to-3.1.md) | Method parity, cache key v2, `defineAppRepo` defaults |
+| [3.1 → 3.2](guide/migration-to-3.2.md) | Composite PK where shape, cursor `skip`, OTel, PG+Redis ITs |
 
 ## Migration
 
@@ -46,6 +50,8 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | Prisma `$extends` | [migration-from-prisma-extends.md](guide/migration-from-prisma-extends.md) |
 | TypeORM | [migration-from-typeorm.md](guide/migration-from-typeorm.md) |
 | PrismaKit 2.x | [migration-to-3.md](guide/migration-to-3.md) |
+| PrismaKit 3.0.x | [migration-to-3.1.md](guide/migration-to-3.1.md) |
+| PrismaKit 3.1.x | [migration-to-3.2.md](guide/migration-to-3.2.md) |
 
 ## Reference
 
@@ -64,6 +70,7 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | `@prismakit/redis` | [npm](https://www.npmjs.com/package/@prismakit/redis) |
 | `@prismakit/memory` | [npm](https://www.npmjs.com/package/@prismakit/memory) |
 | `@prismakit/nestjs` | [npm](https://www.npmjs.com/package/@prismakit/nestjs) |
+| `@prismakit/opentelemetry` | [npm](https://www.npmjs.com/package/@prismakit/opentelemetry) |
 | `@prismakit/cli` | [npm](https://www.npmjs.com/package/@prismakit/cli) |
 | `@prismakit/eslint-plugin` | [npm](https://www.npmjs.com/package/@prismakit/eslint-plugin) |
 

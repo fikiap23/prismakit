@@ -141,6 +141,8 @@ npx skills add fikiap23/prismakit
 
 ## Next steps
 
+- [Production guide](guide/production.md) — supported matrix and checklist
+- [Reference Nest starter](https://github.com/fikiap23/starter-prismakit-nestjs) — Nest 11 + Prisma 7 + Redis + MinIO
 - [Repository methods](guide/repository.md)
 - [NestJS module options](guide/nestjs.md)
 - [Cache](guide/cache.md)

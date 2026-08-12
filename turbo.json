@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": ["DATABASE_URL", "REDIS_URL", "CI", "FORCE_INTEGRATION"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -7,7 +8,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["DATABASE_URL", "REDIS_URL", "CI", "FORCE_INTEGRATION"]
     },
     "lint": {
       "outputs": []

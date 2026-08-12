@@ -141,6 +141,20 @@ const page = await repo.getManyCursor({
 // { data, nextCursor, hasMore }
 ```
 
+When `cursor` is set, PrismaKit defaults **`skip: 1`** (Prisma cursors are inclusive). Pass `skip: 0` only if you want the cursor row repeated.
+
+### Composite primary keys
+
+For `@@id([postId, tagId])`, pass `id` as an object. PrismaKit maps it to Prisma’s compound unique input (`postId_tagId: { postId, tagId }`):
+
+```typescript
+await postTags.getById({
+  id: { postId, tagId },
+  select: { postId: true, tagId: true },
+  setCache: true,
+});
+```
+
 ### `count` / `exists`
 
 ```typescript

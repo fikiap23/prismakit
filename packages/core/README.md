@@ -77,7 +77,9 @@ Prefer [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) fo
 | Package | Role |
 |---------|------|
 | [`@prismakit/redis`](https://www.npmjs.com/package/@prismakit/redis) | Redis `CacheAdapter` |
+| [`@prismakit/memory`](https://www.npmjs.com/package/@prismakit/memory) | In-memory `CacheAdapter` (tests) |
 | [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | NestJS integration |
+| [`@prismakit/opentelemetry`](https://www.npmjs.com/package/@prismakit/opentelemetry) | OpenTelemetry metrics/spans |
 | [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | Scaffold / validate / skills |
 | [`@prismakit/eslint-plugin`](https://www.npmjs.com/package/@prismakit/eslint-plugin) | Repository-only ESLint rules |
 

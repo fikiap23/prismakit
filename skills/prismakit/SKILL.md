@@ -52,8 +52,9 @@ Helpers may inject repositories — never the Prisma client.
 | Existence / uniqueness / auth | `getFirst` — **no** `setCache` |
 | List | `getMany` + `setCache: true` + optional `cacheTags` |
 | Paginated list | `getManyPaginate` |
-| Large / infinite list | `getManyCursor` |
+| Large / infinite list | `getManyCursor` (with `cursor` → default `skip: 1`) |
 | Count / exists check | `count` / `exists` (no `setCache` on auth paths) |
+| Composite PK row | `id: { a, b }` object — kit maps to Prisma `a_b: { a, b }` |
 | Aggregations | `aggregate` / `groupBy` |
 | Create / update / delete | matching mutation; default invalidation is enough outside tx |
 | Multi-step write | one transaction; pass `tx` into every repo call |
@@ -124,7 +125,9 @@ await users.getFirst({
 | `count` / `exists` | `{ count }` / `{ exists }` |
 | `aggregate` / `groupBy` | Prisma delegate results |
 
-`id` is `string` or `Record<string, string>` for composite PKs.
+`id` is `string` or `Record<string, string>` for composite PKs (object form for `@@id([a,b])`).
+
+`getManyCursor`: when `cursor` is set, default `skip` is `1` so the cursor row is not repeated. Pass `skip: 0` only for inclusive semantics.
 
 ## Writes
 
@@ -234,6 +237,11 @@ export default [prismakit.configs.recommended];
 
 Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules: `no-prisma-service-outside-repos`, `no-direct-prisma-delegate`, `require-transaction-service`, `require-cached-repo-provider`.
 
+## Observability
+
+- Core: `setTelemetry({ enabled, onEvent })` or Nest `telemetry` / `queryLog.slowThreshold`.
+- Optional: `@prismakit/opentelemetry` → `createPrismaKitTelemetry({ slowThreshold })`.
+
 ## Clean code
 
 - One repository per Prisma model, file `*.repository.ts` under `repositories/`.
@@ -241,6 +249,7 @@ Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules
 - Named TTL constants (`const DAY = 86_400`), not magic numbers scattered in call sites.
 - Pass `tx` into **every** repo call in a unit of work. Do not mix cached reads with half-committed writes.
 - Tests: `@prismakit/memory` `MemoryCacheAdapter`. Production: `@prismakit/redis`.
+- Library CI proves PG+Redis paths under `FORCE_INTEGRATION=1` (CRUD, compose, locks, stampede, fail-open).
 
 ## Anti-patterns (BAD → GOOD)
 

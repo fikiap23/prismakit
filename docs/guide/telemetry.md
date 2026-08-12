@@ -44,4 +44,27 @@ PrismaKitModule.forRoot({
 });
 ```
 
-`queryLog` automatically enables telemetry and filters `query.complete` events above the threshold.
+`queryLog` enables telemetry and sets `slowThreshold` so core also emits `query.slow`.
+`onSlowQuery` is invoked for those slow events.
+
+## OpenTelemetry
+
+```bash
+pnpm add @prismakit/opentelemetry @opentelemetry/api
+```
+
+```typescript
+import { createPrismaKitTelemetry } from '@prismakit/opentelemetry';
+
+PrismaKitModule.forRoot({
+  prisma,
+  cache,
+  telemetry: createPrismaKitTelemetry({ slowThreshold: 500 }),
+});
+```
+
+See the package README for metric names. Bring your own OTel SDK — the adapter only uses `@opentelemetry/api`.
+
+## Production
+
+Full ops checklist: [Production guide](production.md).

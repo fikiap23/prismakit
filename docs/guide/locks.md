@@ -88,5 +88,9 @@ lock?: {
 - `tx` is required when `lock` is passed
 - Never lock outside a transaction
 - Prefer short transactions
+- Datasource must be **PostgreSQL** (`UnsupportedProviderError` otherwise)
+- Locked reads never write cache (transaction path)
+
+Repo-level locks (`getById` / `getFirst` / `getMany` with `lock:`) are covered by Nest integration tests against real Postgres — see [Production](production.md).
 
 See also [Transactions](transactions.md) and [Rules](../RULES.md).
