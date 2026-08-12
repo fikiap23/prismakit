@@ -1,5 +1,11 @@
 # @prismakit/opentelemetry
 
+## 3.2.1
+
+### Patch Changes
+
+- Republish first release after npm registry package-doc glitch (3.2.0 remains a tombstone).
+
 ## 3.2.0
 
 ### Minor Changes
