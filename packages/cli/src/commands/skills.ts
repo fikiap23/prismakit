@@ -44,7 +44,6 @@ export function findSkillsRoot(startDir: string): string | undefined {
     for (const candidate of [
       path.join(dir, 'skills'),
       dir,
-      path.join(dir, 'templates', 'cursor-skills'),
     ]) {
       if (isSkillsRoot(candidate)) return candidate;
     }

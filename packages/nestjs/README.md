@@ -1,8 +1,10 @@
 # @prismakit/nestjs
 
-NestJS integration for PrismaKit: `PrismaKitModule`, injectable repositories, and `TransactionService`.
+NestJS integration for PrismaKit: `PrismaKitModule`, `createDefineRepo`, and `TransactionService`.
 
-[Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [NestJS guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/nestjs.md) · [GitHub](https://github.com/fikiap23/prismakit)
+**Status:** pre-stable (4.0).
+
+[Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [NestJS guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/nestjs.md) · [Migrate to 4.0](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-4.md) · [GitHub](https://github.com/fikiap23/prismakit)
 
 ## Install
 
@@ -16,31 +18,42 @@ pnpm add -D @prismakit/eslint-plugin
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { PrismaKitModule, createInjectableRepository } from '@prismakit/nestjs';
+import { PrismaKitModule, createDefineRepo } from '@prismakit/nestjs';
 import { RedisCacheAdapter } from '@prismakit/redis';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
+});
 
 @Module({
   imports: [
     PrismaKitModule.forRoot({
       prisma: prismaClient,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+      schemaPath: 'prisma/schema.prisma',
+      telemetry: {
+        enabled: true,
+        slowThreshold: 500,
+        onEvent: (e) => console.debug(e.type),
+      },
     }),
   ],
 })
 export class AppModule {}
 
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
-  cache: { ttl: 86400 },
-  lock: 'users',
-});
+  cache: { sensitiveFields: ['password'] },
+  lock: true,
+}) {}
 ```
 
 Register `UserRepository` in a feature module `providers`.
 
 **Do not** inject `PrismaClient` into services — use repositories + `TransactionService`.
+
+`createInjectableRepository` is a low-level escape hatch when TypeMap binding is unavailable (results are thinly typed). Prefer `createDefineRepo`.
 
 ## Module options
 
@@ -48,16 +61,14 @@ Register `UserRepository` in a feature module `providers`.
 |--------|-------------|
 | `prisma` | Your Prisma client instance |
 | `cache` | Optional `CacheAdapter` |
-| `cacheModels` | Optional extra allowlist (omit — repo `cache` is enough) |
+| `schemaPath` / `dmmf` | Load Prisma meta for compose + `lock: true` (default path `prisma/schema.prisma`) |
 | `validateCompose` | Run compose validation on boot |
-| `strictCachedRepos` | Fail boot if a cached repo is missing from `providers`, or listed in two modules (scans source; default `true`) |
-| `schemaPath` | Path to `schema.prisma` for lock/compose meta (default `prisma/schema.prisma`) |
+| `strictCachedRepos` | Fail boot if a cached repo is missing from `providers`, or listed in two modules (default `true`) |
 | `compose` | `{ maxDepth, parallel, setCache }` |
-| `telemetry` | Kit events / `@prismakit/opentelemetry` |
-| `queryLog` | `{ slowThreshold }` → `query.slow` |
+| `telemetry` | `{ enabled, slowThreshold, onSlowQuery, onEvent }` or `createPrismaKitTelemetry()` |
 | `autoRegisterModels` | Stub repos for compose-only models |
 
-Also supports `PrismaKitModule.forRootAsync`. Prefer `createDefineRepo` / app `defineAppRepo` binder over ad-hoc `createInjectableRepository` in large apps.
+Also supports `PrismaKitModule.forRootAsync`.
 
 ## Transactions
 

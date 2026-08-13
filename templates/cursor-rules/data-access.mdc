@@ -13,7 +13,7 @@ alwaysApply: true
 
 ## Required
 
-- **Reads/writes:** `*Repository` from `createRepository` / `createInjectableRepository`
+- **Reads/writes:** `*Repository` from `createRepository` / Nest `createDefineRepo` (`defineAppRepo`)
 - **Transactions:** `TransactionService.execTx` with `invalidate: 'none'` + `afterCommit` → `invalidateCache`
 - **ESLint:** `@prismakit/eslint-plugin` recommended config
 

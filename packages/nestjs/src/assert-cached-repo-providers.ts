@@ -5,7 +5,7 @@ const REPO_FILE_RE = /repositories[/\\][\w.-]+\.repository\.(ts|js)$/;
 const DEFAULT_MODULE_ROOTS = ['src/modules', 'build/compile/src/modules'];
 
 const FACTORIES =
-  'defineAppRepo|defineRepo|defineRepository|defineInjectableRepository|createInjectableRepository|createPrismaRepository|createRepository';
+  'defineAppRepo|createInjectableRepository|createRepository|createDefineRepo';
 
 export type CachedRepoDeclaration = {
   className: string;

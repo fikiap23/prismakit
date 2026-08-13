@@ -41,6 +41,7 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | [2.x → 3.0](guide/migration-to-3.md) | Relation aliases removed; TypeMap bulk ops |
 | [3.0 → 3.1](guide/migration-to-3.1.md) | Method parity, cache key v2, `defineAppRepo` defaults |
 | [3.1 → 3.2](guide/migration-to-3.2.md) | Composite PK where shape, cursor `skip`, OTel, PG+Redis ITs |
+| [3.2 → 4.0](guide/migration-to-4.md) | Public API cleanup — single factories, meta-only options, telemetry |
 
 ## Migration
 
@@ -52,6 +53,7 @@ It mirrors these guides with shorter summaries and links back here for the full 
 | PrismaKit 2.x | [migration-to-3.md](guide/migration-to-3.md) |
 | PrismaKit 3.0.x | [migration-to-3.1.md](guide/migration-to-3.1.md) |
 | PrismaKit 3.1.x | [migration-to-3.2.md](guide/migration-to-3.2.md) |
+| PrismaKit 3.2.x | [migration-to-4.md](guide/migration-to-4.md) |
 
 ## Reference
 

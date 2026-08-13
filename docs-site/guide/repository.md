@@ -1,16 +1,17 @@
 # Repository
 
-Everything that touches Prisma goes through a repository from `createRepository` (core) or `createInjectableRepository` / `defineInjectableRepository` (NestJS).
+Everything that touches Prisma goes through a repository from `createRepository` (core) or Nest `createDefineRepo` / `defineAppRepo`.
 
 ## Factory options
 
 | Option | Purpose |
 |--------|---------|
-| `model` | Prisma client key (`'user'` → `prisma.user`) — required for cache + compose |
-| `scalarFields` | Usually `Prisma.XScalarFieldEnum` — select split / compose |
+| `model` | Prisma client key (`'user'` → `prisma.user`) — required |
 | `cache` | `CacheOptions` or `true` for defaults |
-| `lock` | Table name, `true`, or lock config |
-| `primaryKey` | Override PK (`string` or composite `string[]`) |
+| `lock` | `true` (from meta) or `{ tableName, columns? }` |
+| `toPayload` | Optional payload mapper |
+
+Scalars, PK, and relations come from Prisma meta (`schemaPath` / `dmmf` / `loadPrismaMetaFrom*`).
 
 ## Common methods
 

@@ -10,6 +10,7 @@ Adopt PrismaKit incrementally. Pick the guide that matches your starting point:
 | PrismaKit 2.x | [Migration to 3.0](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.md) |
 | PrismaKit 3.0.x | [Upgrade to 3.1](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.1.md) |
 | PrismaKit 3.1.x | [Upgrade to 3.2](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-3.2.md) |
+| PrismaKit 3.2.x | [Upgrade to 4.0](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-4.md) |
 
 ## Suggested order
 

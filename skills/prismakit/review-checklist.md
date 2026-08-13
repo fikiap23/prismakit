@@ -26,8 +26,7 @@ Task Progress:
 - [ ] New model access goes through `createRepository` (core) or the app's Nest `defineRepo` binder — not a one-off Prisma call
 - [ ] File lives under `**/repositories/**` as `*.repository.ts`
 - [ ] `model` is the Prisma client key (`'user'`, not `'User'`)
-- [ ] `scalarFields` is set **or** Prisma meta is loaded at bootstrap (`dmmf` / `schemaPath`)
-- [ ] `cacheModels` is omitted unless the app wants an extra allowlist
+- [ ] Prisma meta is loaded at bootstrap (`dmmf` / `schemaPath` / `loadPrismaMetaFrom*`)
 
 ## Selects
 
@@ -54,7 +53,7 @@ Task Progress:
 
 ## Locks
 
-- [ ] Repo declares `lock` (`true`, client key, table name, or config) before any call passes `lock`
+- [ ] Repo declares `lock` (`true` or `{ tableName, columns }`) before any call passes `lock`
 - [ ] Every `lock: { mode }` call also passes `tx`
 - [ ] `skipLocked` is not combined with `nowait`
 - [ ] Locked transactions stay short

@@ -15,7 +15,7 @@ All of these must be true:
 ## Configure
 
 ```typescript
-createInjectableRepository({
+defineAppRepo({
   model: 'user',
   cache: {
     ttl: 86400,
@@ -27,17 +27,21 @@ createInjectableRepository({
 });
 ```
 
+Repository `cache` is the only allowlist (no Nest `cacheModels` in 4.0).
+
 ## Writes & invalidation
 
 - Default write invalidation: `'all'`
 - Inside transactions: `invalidate: 'none'`, then `invalidateCache` in `afterCommit`
-- Metadata-only updates (e.g. `lastLoginAt`): `invalidate: 'none'`
+- Modes: `'all' | 'entity' | 'queries' | 'none'`
 
 ## Adapters
 
 | Package | Use case |
 |---------|----------|
-| `@prismakit/redis` | Production shared cache |
+| `@prismakit/redis` | Production shared cache (`createRedisJsonReviver` for custom revive) |
 | `@prismakit/memory` | Tests and local dev |
+
+Debug: `CACHE_DEBUG=true` → `cacheDebugStorage` from `@prismakit/core`.
 
 Full guide: [docs/guide/cache.md](https://github.com/fikiap23/prismakit/blob/master/docs/guide/cache.md)

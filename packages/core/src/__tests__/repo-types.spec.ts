@@ -1,5 +1,6 @@
 import { describe, it, expectTypeOf } from 'vitest';
 import { createRepository, type RepoPayloadHKT } from '../index';
+import { clearPrismaMeta } from '../schema/prisma-meta';
 
 type FakeSelect = { id?: boolean; email?: boolean; password?: boolean };
 type FakePayload<T extends FakeSelect> = (T extends { id: true }
@@ -25,11 +26,10 @@ type FakeTypes = {
 
 describe('RepoTypes strong payload inference', () => {
   it('infers GetPayload-like result from select', async () => {
+    clearPrismaMeta();
     const findUnique = async () => ({ id: '1', email: 'a@b.c' });
     const Repo = createRepository<FakeTypes>({
       model: 'user',
-      getDelegate: (c) =>
-        ({ findUnique }) as never,
     });
     const repo = new Repo({
       prisma: { user: { findUnique } },

@@ -3,7 +3,6 @@ import { AutoComposer } from '../../auto-composer';
 import { RepositoryRegistry } from '../../repository-registry';
 import {
   clearPrismaMeta,
-  getModelMeta,
   loadPrismaMetaFromDmmf,
   type PrismaDmmfLike,
 } from '../../schema/prisma-meta';
@@ -65,11 +64,8 @@ export function setupMessyWorld(seed?: {
   const repos: Record<string, any> = {};
 
   for (const model of modelNames) {
-    const meta = getModelMeta(model)!;
     const Repo = createRepository({
       model,
-      primaryKey: meta.primaryKey ?? (model === 'post' ? 'postId' : model === 'user' ? 'uid' : model === 'category' ? 'code' : 'id'),
-      scalarFields: meta.scalarFields,
       cache: { ttl: 300, defaultSetCache: false },
       lock: true,
     });
@@ -106,13 +102,8 @@ export function setupSimpleWorld(seed?: {
 
   const repos: Record<string, any> = {};
   for (const model of ['user', 'post', 'postTag'] as const) {
-    const meta = getModelMeta(model);
     const Repo = createRepository({
       model,
-      primaryKey:
-        meta?.primaryKey ??
-        (model === 'postTag' ? (['postId', 'tagId'] as string[]) : 'id'),
-      scalarFields: meta?.scalarFields,
       cache: { ttl: 300, defaultSetCache: false, sensitiveFields: ['password'] },
       lock: true,
     });

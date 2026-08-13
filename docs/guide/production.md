@@ -2,6 +2,8 @@
 
 PrismaKit is a **repository layer on top of Prisma** — cache-aside, auto-compose, Postgres row locks, Nest `execTx`. It is not an ORM fork.
 
+**4.0 is pre-stable** — pin versions and follow [Upgrade to 4.0](migration-to-4.md).
+
 ## Supported matrix
 
 | Surface | Supported |
@@ -18,7 +20,8 @@ PrismaKit is a **repository layer on top of Prisma** — cache-aside, auto-compo
 Copy patterns from the Nest starter (Nest 11 + Prisma 7 + Redis + MinIO):
 
 - [starter-prismakit-nestjs](https://github.com/fikiap23/starter-prismakit-nestjs)
-- Module wiring: `PrismaKitModule.forRoot` + `telemetry` / `queryLog`
+- Module wiring: `PrismaKitModule.forRoot` + `telemetry`
+- Repos: `createDefineRepo` / `defineAppRepo`
 - Checkout: `TransactionService.execTx` + `invalidate: 'none'` + `afterCommit` → `invalidateCache`
 
 ## Cache rules (do not skip)
@@ -48,7 +51,7 @@ Never invalidate inside the transaction body — a rollback would leave cache wr
 
 ## Row locks
 
-- Repo must declare `lock` config; call must pass `tx`.
+- Repo must declare `lock: true` (or `{ tableName, columns }`); call must pass `tx`.
 - Datasource must be PostgreSQL (`UnsupportedProviderError` otherwise).
 - Prefer short transactions; `nowait` and `skipLocked` are mutually exclusive.
 
@@ -65,7 +68,7 @@ Never invalidate inside the transaction body — a rollback would leave cache wr
 
 - Structured events: [Telemetry](telemetry.md)
 - OpenTelemetry metrics/spans: `@prismakit/opentelemetry` → `createPrismaKitTelemetry()`
-- Nest `queryLog.slowThreshold` emits `query.slow` and optional `onSlowQuery`
+- Nest `telemetry.slowThreshold` / `onSlowQuery` emit `query.slow`
 
 ## Escape hatches
 

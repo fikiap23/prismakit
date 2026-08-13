@@ -1,77 +1,64 @@
 # Repository guide
 
-Everything that touches Prisma goes through a repository created with `createRepository` (core) or `createInjectableRepository` (NestJS).
+Everything that touches Prisma goes through a repository created with `createRepository` (core) or Nest `createDefineRepo` / `defineAppRepo`.
 
-## Creating a repository (strong types)
-
-Use `defineInjectableRepository` (alias `defineRepo`) — phantoms + payload HKT:
+## NestJS (default)
 
 ```typescript
-import { Prisma } from '@prisma/client';
-import { defineInjectableRepository } from '@prismakit/nestjs';
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client';
 
-type Of<S> = S extends Prisma.UserSelect
-  ? Prisma.UserGetPayload<{ select: S }>
-  : never;
-
-export const UserRepository = defineInjectableRepository({
-  model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
-  select: null! as Prisma.UserSelect,
-  create: null! as Prisma.UserCreateInput,
-  update: null! as Prisma.UserUpdateInput,
-  where: null! as Prisma.UserWhereInput,
-  orderBy: null! as Prisma.UserOrderByWithRelationInput,
-  payload: class {
-    declare readonly _select: unknown;
-    declare type: () => Of<this['_select']>;
-  },
-  cache: { ttl: 86400, sensitiveFields: ['password'] },
-  lock: 'users',
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
 });
+
+export class UserRepository extends defineAppRepo({
+  model: 'user',
+  cache: { sensitiveFields: ['password'] },
+  lock: true,
+}) {}
 
 export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
 
-`getById({ select: { id: true, email: true } })` then returns
-`Prisma.UserGetPayload<{ select: { id: true; email: true } }> | null`.
+`getById({ select: { id: true, email: true } })` then returns a typed payload from the TypeMap.
 
-### Types-bag overload (equivalent)
+### Escape hatch
 
-You can still use `createInjectableRepository<UserTypes>({...})` with an
-explicit `RepoTypesDefinition` if you prefer that style.
+`createInjectableRepository({ model, cache?, lock?, toPayload? })` wraps `createRepository` for Nest DI when TypeMap binding is unavailable. Results are thinly typed unless you supply `toPayload`. Prefer `createDefineRepo` for app code.
 
-### Minimal (no payload precision)
-
-Omitting the types bag keeps the factory thin, but method results are `unknown`
-unless you supply a typed `toPayload`. Prefer `defineInjectableRepository` above for app code.
+## Core (plain Node)
 
 ```typescript
-export const UserRepository = createInjectableRepository({
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+
+export const UserRepoClass = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400 },
-  lock: 'users',
+  lock: true,
 });
+
+const users = new UserRepoClass({ prisma, cache });
 ```
 
 ### Options
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `model` | `string` | Prisma client key (`prisma.user` → `'user'`). Needed for cache + auto-compose. |
-| `scalarFields` | `Record<string, string>` | Usually `Prisma.XScalarFieldEnum`. Enables select split + compose. |
+| `model` | `string` | Prisma client key (`prisma.user` → `'user'`). **Required.** |
 | `cache` | `CacheOptions \| true` | Enable cache-aside. `true` → `{ ttl: 86400, sensitiveFields: ['password'] }`. |
-| `lock` | `RepositoryLockConfig \| string` | Row lock config, or DB table name (`@@map`) resolved from schema. |
-| `schemaPath` | `string` | Path to `schema.prisma` (lock validation / schema helpers). |
-| `getDelegate` | `(client) => delegate` | Optional. Defaults to `(c) => c[model]`. |
-| `toPayload` | `(data) => payload` | Optional. Defaults to identity cast (use types bag instead). |
+| `lock` | `true \| RepositoryLockConfig` | `true` resolves table/columns from Prisma meta, or `{ tableName, columns? }`. |
+| `toPayload` | `(data) => payload` | Optional. Defaults to identity. |
+
+Scalars, primary key, and relations come from Prisma meta (`loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf`, or Nest `schemaPath` / `dmmf`).
 
 ### Shorthands
 
 ```typescript
-cache: true,        // default TTL + sensitiveFields
-lock: 'users',      // same as buildLockConfigFromSchema('users')
+cache: true,  // default TTL + sensitiveFields
+lock: true,   // table + columns from meta
 ```
 
 ## Reading
@@ -251,7 +238,7 @@ See [Locks](locks.md).
 
 ## Auto-compose
 
-With `model` + `scalarFields`, relation keys in `select` are loaded via other registered repositories (not Prisma `include`).
+With `model` and Prisma meta loaded, relation keys in `select` are loaded via other registered repositories (not Prisma `include`).
 
 See [Auto-compose](auto-compose.md).
 
@@ -259,6 +246,7 @@ See [Auto-compose](auto-compose.md).
 
 | | Core | NestJS |
 |---|------|--------|
-| Factory | `createRepository` | `createInjectableRepository` |
+| Factory | `createRepository` | `createDefineRepo` / `defineAppRepo` (default) |
 | Instantiation | `new Repo({ prisma, cache })` | Nest DI (register class in `providers`) |
 | Transactions | Your own `$transaction` | `TransactionService.execTx` |
+| Escape hatch | — | `createInjectableRepository` |

@@ -159,8 +159,6 @@ describe('cache invalidation & key correctness', () => {
     const autoCompose = new AutoComposer(registry);
     const Repo = createRepository({
       model: 'user',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', name: 'name', password: 'password' },
       cache: {
         ttl: 300,
         defaultSetCache: true,
@@ -203,8 +201,6 @@ describe('cache invalidation & key correctness', () => {
     const autoCompose = new AutoComposer(registry);
     const Repo = createRepository({
       model: 'user',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', name: 'name', password: 'password' },
       cache: { ttl: 300, defaultSetCache: true },
       toPayload: <T,>(data: any): any =>
         data

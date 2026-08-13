@@ -14,6 +14,12 @@ import { RedisCacheAdapter } from '@prismakit/redis';
     PrismaKitModule.forRoot({
       prisma: prismaClient,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+      schemaPath: 'prisma/schema.prisma',
+      telemetry: {
+        enabled: true,
+        slowThreshold: 500,
+        onEvent: (e) => console.debug(e.type),
+      },
     }),
   ],
 })
@@ -26,11 +32,14 @@ export class AppModule {}
 |--------|----------|-------------|
 | `prisma` | yes | Your `PrismaClient` (or compatible) instance |
 | `cache` | no | `CacheAdapter` (e.g. `RedisCacheAdapter`) |
-| `cacheModels` | no | Optional extra allowlist. Omit — repo `cache` is the source of truth |
-| `schemaPath` | no | Path to `prisma/schema.prisma` for lock helpers |
+| `schemaPath` | no | Path to `schema.prisma` for compose + locks (default `prisma/schema.prisma`) |
+| `dmmf` | no | `Prisma.dmmf` on Prisma 5/6 (prefer `schemaPath` on Prisma 7) |
 | `validateCompose` | no | When `true`, run compose validation on module init |
 | `strictCachedRepos` | no | Fail boot when a `cache` repo is missing from `providers`, or listed in two modules (default `true`) |
 | `modulesRoot` | no | Directory scanned by `strictCachedRepos` (default `src/modules`) |
+| `compose` | no | `{ maxDepth, parallel, setCache }` |
+| `telemetry` | no | `{ enabled, slowThreshold, onSlowQuery, onEvent }` |
+| `autoRegisterModels` | no | Stub repos for compose-only models |
 
 ### Async config
 
@@ -44,24 +53,36 @@ PrismaKitModule.forRootAsync({
       url: config.get('REDIS_URL'),
       prefix: config.get('CACHE_PREFIX') ?? 'myapp',
     }),
+    schemaPath: 'prisma/schema.prisma',
   }),
 });
 ```
 
-## Injectable repositories
+## Injectable repositories (default)
+
+Bind `Prisma.TypeMap` once with app-wide cache defaults:
 
 ```typescript
-import { Prisma } from '@prisma/client';
-import { createInjectableRepository } from '@prismakit/nestjs';
+// src/infrastructure/prisma/define-app-repo.ts
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client';
 
-export const ProductRepository = createInjectableRepository({
-  model: 'product',
-  scalarFields: Prisma.ProductScalarFieldEnum,
-  cache: { ttl: 300 },
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
 });
 ```
 
-Register the returned class in a feature module `providers`. Never inject `prisma` into services. If `cache` is set on the class but it is omitted from `providers`, Nest boot throws (`strictCachedRepos`).
+```typescript
+// product.repository.ts
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
+
+export class ProductRepository extends defineAppRepo({
+  model: 'product',
+  cache: true, // inherits app-wide defaults
+}) {}
+```
+
+Register the class in a feature module `providers`. Never inject `prisma` into services. If `cache` is set on the class but it is omitted from `providers`, Nest boot throws (`strictCachedRepos`).
 
 When `cache` is set on the repository options, TypeScript exposes `setCache` / `cacheTags` on reads and invalidation fields on writes. Without `cache`, those options are omitted from the type (see [Cache](./cache.md#typescript-dx)).
 
@@ -80,7 +101,7 @@ Inject like any Nest provider:
 constructor(private readonly products: ProductRepository) {}
 ```
 
-Alias: `createPrismaRepository` === `createInjectableRepository`.
+Escape hatch: `createInjectableRepository({ model, cache?, lock?, toPayload? })` when TypeMap binding is unavailable (results are thinly typed). Prefer `createDefineRepo` for app code.
 
 ## What the module provides
 

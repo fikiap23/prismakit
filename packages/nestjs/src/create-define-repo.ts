@@ -18,19 +18,11 @@ export type ModelKeyOf<TTypeMap extends PrismaTypeMapLike> =
 
 type RuntimeRepoOptions<TModel extends string = string> = {
   model: TModel;
-  /**
-   * @deprecated Prefer omitting — resolved from prisma/schema.prisma meta.
-   * Keep only when the schema file is unavailable at runtime.
-   */
-  scalarFields?: Record<string, string>;
-  /** Override PK. Defaults to schema/`@@id` (composite `string[]`) or `id`. */
-  primaryKey?: string | string[];
   cache?: RepositoryOptions['cache'];
   lock?: RepositoryOptions['lock'];
-  schemaPath?: string;
 };
 
-/** Constructor returned by `defineRepo` / `defineAppRepo`. */
+/** Constructor returned by `defineAppRepo` / the binder from `createDefineRepo`. */
 export type InjectableRepo<I> = new (...args: never[]) => I;
 
 type RepoApi<
@@ -48,7 +40,6 @@ export type DefineRepoDefaults = {
    * `cache: { ttl }` merges on top; omitting `cache` keeps the repo uncached.
    */
   cache?: CacheOptions;
-  schemaPath?: string;
 };
 
 function mergeCacheOption(
@@ -93,7 +84,6 @@ export function createDefineRepo<TTypeMap extends PrismaTypeMapLike>(
   >(options: O): InjectableRepo<RepoApi<TTypeMap, O>> {
     const merged = {
       ...options,
-      schemaPath: options.schemaPath ?? defaults?.schemaPath,
       cache: mergeCacheOption(defaults?.cache, options.cache),
     };
     return createInjectableRepository(merged) as unknown as InjectableRepo<

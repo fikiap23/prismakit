@@ -40,19 +40,16 @@ function renderRepository(
   prismaImport: string,
   base: string,
 ): GeneratedFile {
-  const cacheBlock = cacheEnabled
-    ? `  cache: {
-    ttl: 86400,
-    sensitiveFields: ['password'],
-    defaultSetCache: true,
-  },
-`
-    : '';
+  const cacheBlock = cacheEnabled ? `  cache: true,\n` : '';
 
   const content = apply(
-    `import { createInjectableRepository } from '@prismakit/nestjs';
+    `import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
 
-export class {{pascal}}Repository extends createInjectableRepository({
+/**
+ * Bind once in infrastructure:
+ * export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({ cache: { ... } });
+ */
+export class {{pascal}}Repository extends defineAppRepo({
   model: '{{repoModel}}',
 {{cacheBlock}}}) {}
 `,

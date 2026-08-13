@@ -7,7 +7,9 @@
 Prisma repository kit with **cache-aside**, **auto-compose**, and **row locks**.  
 Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 
-**Docs:** [docs/README.md](docs/README.md) · [Docs site](docs-site/) · [Getting started](docs/getting-started.md) · [Migration](docs/guide/migration-from-raw-prisma.md) · [Rules](docs/RULES.md)
+**Status:** **pre-stable** (4.0 public API cleanup). Prefer pinning exact versions until the 4.x line freezes.
+
+**Docs:** [docs/README.md](docs/README.md) · [Docs site](docs-site/) · [Getting started](docs/getting-started.md) · [Migrate to 4.0](docs/guide/migration-to-4.md) · [Rules](docs/RULES.md)
 
 ## Packages
 
@@ -16,29 +18,21 @@ Framework-agnostic core with an optional NestJS adapter — not a Prisma fork.
 | [`@prismakit/core`](https://www.npmjs.com/package/@prismakit/core) | `createRepository`, AutoComposer, locks, pagination, `CacheAdapter` |
 | [`@prismakit/redis`](https://www.npmjs.com/package/@prismakit/redis) | Redis `CacheAdapter` |
 | [`@prismakit/memory`](https://www.npmjs.com/package/@prismakit/memory) | In-memory `CacheAdapter` (tests / local) |
-| [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | `PrismaKitModule`, `TransactionService`, injectable repositories |
+| [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) | `PrismaKitModule`, `TransactionService`, `createDefineRepo` |
 | [`@prismakit/opentelemetry`](https://www.npmjs.com/package/@prismakit/opentelemetry) | Map telemetry events to OpenTelemetry metrics/spans |
 | [`@prismakit/cli`](https://www.npmjs.com/package/@prismakit/cli) | `prismakit generate / validate / skills` |
 | [`@prismakit/eslint-plugin`](https://www.npmjs.com/package/@prismakit/eslint-plugin) | Enforce repository-only data access |
 
-## What's new in 3.2
+## What's new in 4.0
 
 | Area | Highlights |
 |------|------------|
-| **Real PG + Redis ITs** | CRUD, compose, repo locks, nullTtl/tags/stampede/fail-open, Nest `execTx` — against Postgres 16 + Redis 7 in CI (`FORCE_INTEGRATION=1`) |
-| **Composite PK** | `*ById` uses Prisma compound unique shape (`a_b: { a, b }`) |
-| **Cursor pages** | `getManyCursor` defaults `skip: 1` when a cursor is set (Prisma cursor is inclusive) |
-| **OpenTelemetry** | `@prismakit/opentelemetry` maps kit events to metrics/spans; `query.slow` + `slowThreshold` |
-| **Production guide** | Supported matrix, starter reference, ops checklist |
+| **Single factories** | Core: `createRepository` only. Nest default: `createDefineRepo` / app `defineAppRepo` |
+| **Thin repo options** | `model`, `cache?`, `lock?: true \| RepositoryLockConfig`, `toPayload?` — meta from schema/DMMF |
+| **Telemetry** | Nest `queryLog` folded into `telemetry` (`slowThreshold`, `onSlowQuery`, `onEvent`) |
+| **Removed** | `cacheModels`, string `lock` shorthands, Nest/core aliases (`defineRepository`, `createPrismaRepository`, …) |
 
-See [upgrade to 3.2](docs/guide/migration-to-3.2.md) · [Production](docs/guide/production.md).
-
-## What's new in 3.1 / 3.0
-
-| Line | Highlights |
-|------|------------|
-| **3.1** | Full method parity (`count`/`exists`/`aggregate`/`groupBy`/`getManyCursor`), typed errors, Redis Date/BigInt codec, `defineAppRepo` cache defaults — [migration](docs/guide/migration-to-3.1.md) |
-| **3.0** | Schema-only compose (no alias maps), TypeMap bulk ops, default `schemaPath` — [migration](docs/guide/migration-to-3.md) |
+See [upgrade to 4.0](docs/guide/migration-to-4.md) · [Production](docs/guide/production.md).
 
 ## Quick start
 
@@ -50,22 +44,46 @@ npx prismakit skills              # Cursor agent skills → .cursor/skills
 ```
 
 ```typescript
+// define-app-repo.ts
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client'; // or generated client path
+
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
+});
+```
+
+```typescript
 // app.module.ts
 PrismaKitModule.forRoot({
   prisma: prismaClient,
   cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-  cacheModels: ['user'],
+  schemaPath: 'prisma/schema.prisma',
+  telemetry: {
+    enabled: true,
+    slowThreshold: 500,
+    onEvent: (e) => console.debug(e.type),
+  },
 }),
 ```
 
 ```typescript
 // user.repository.ts
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
-  cache: { ttl: 86400 },
-  lock: 'users',
-});
+  cache: { sensitiveFields: ['password'] },
+  lock: true,
+}) {}
+```
+
+Plain Node (no Nest):
+
+```typescript
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+const UserRepo = createRepository({ model: 'user', cache: { ttl: 86400 }, lock: true });
+const users = new UserRepo({ prisma, cache });
 ```
 
 Full walkthrough: [Getting started](docs/getting-started.md).
@@ -82,9 +100,8 @@ Full walkthrough: [Getting started](docs/getting-started.md).
 | Auto-compose | [docs/guide/auto-compose.md](docs/guide/auto-compose.md) |
 | Locks | [docs/guide/locks.md](docs/guide/locks.md) |
 | Transactions | [docs/guide/transactions.md](docs/guide/transactions.md) |
+| Migrate to 4.0 | [docs/guide/migration-to-4.md](docs/guide/migration-to-4.md) |
 | Migrate from raw Prisma | [docs/guide/migration-from-raw-prisma.md](docs/guide/migration-from-raw-prisma.md) |
-| Migrate from `$extends` | [docs/guide/migration-from-prisma-extends.md](docs/guide/migration-from-prisma-extends.md) |
-| Migrate from TypeORM | [docs/guide/migration-from-typeorm.md](docs/guide/migration-from-typeorm.md) |
 | Production | [docs/guide/production.md](docs/guide/production.md) |
 | NestJS starter | [starter-prismakit-nestjs](https://github.com/fikiap23/starter-prismakit-nestjs) (Nest 11 + Prisma 7 + Redis + MinIO) |
 | CLI | [docs/reference/cli.md](docs/reference/cli.md) |

@@ -48,11 +48,10 @@ export type ApplyRepoPayload<
  *   payload: UserPayloadHKT;
  * };
  *
- * export const UserRepository = createInjectableRepository<UserTypes>({
+ * export const UserRepo = createRepository({
  *   model: 'user',
- *   scalarFields: Prisma.UserScalarFieldEnum,
  *   cache: { ttl: 86400 },
- *   lock: 'users',
+ *   lock: true,
  * });
  */
 export type RepoTypesDefinition<TSelect extends object = object> = {

@@ -192,14 +192,10 @@ describe('remaining edge cases', () => {
 
     const UserRepo = createRepository({
       model: 'user',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', name: 'name', password: 'password' },
       cache: { ttl: 300 },
     });
     const PostRepo = createRepository({
       model: 'post',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', title: 'title', authorId: 'authorId' },
       cache: { ttl: 300 },
     });
     const userRepo = new UserRepo(deps);

@@ -92,11 +92,6 @@ export function createRedisJsonReviver(options: RedisJsonOptions = {}) {
   };
 }
 
-/** @deprecated Prefer {@link createRedisJsonReviver} when a decimalFactory is needed. */
-export function redisJsonReviver(_key: string, value: unknown): unknown {
-  return createRedisJsonReviver()(_key, value);
-}
-
 export function redisJsonStringify(value: unknown): string {
   return JSON.stringify(value, function (key, val) {
     const holder = this as Record<string, unknown>;

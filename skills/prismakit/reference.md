@@ -1,19 +1,19 @@
 # PrismaKit core reference
 
-API surface for `@prismakit/core` 3.x. Read [SKILL.md](SKILL.md) first.
+API surface for `@prismakit/core` **4.0** (pre-stable). Read [SKILL.md](SKILL.md) first.
 
 ## Packages
 
 | Package | Role |
 |---------|------|
 | `@prismakit/core` | `createRepository`, AutoComposer, locks, pagination, `CacheAdapter` |
-| `@prismakit/redis` | `RedisCacheAdapter` |
+| `@prismakit/redis` | `RedisCacheAdapter`, `createRedisJsonReviver` |
 | `@prismakit/memory` | `MemoryCacheAdapter` (tests / local) |
 | `@prismakit/opentelemetry` | Map telemetry → OTel metrics/spans |
 | `@prismakit/cli` | `prismakit generate / validate / skills` |
 | `@prismakit/eslint-plugin` | Repository-only data-access rules |
 
-Node ≥ 20. Line **3.2.x**. Install:
+Node ≥ 20. Install:
 
 ```bash
 pnpm add @prismakit/core
@@ -29,7 +29,7 @@ pnpm add -D @prismakit/eslint-plugin @prismakit/cli
 createRepository(options) → new RepoClass(deps: RepositoryDeps)
 ```
 
-Alias: `defineRepository`. (`createPrismaRepository` is also an alias in core but maps to `createInjectableRepository` in `@prismakit/nestjs` — avoid it to prevent confusion.)
+Public factory: **`createRepository` only**.
 
 `RepositoryDeps`: `{ prisma, cache?, registry?, autoCompose? }`.
 
@@ -37,14 +37,12 @@ Alias: `defineRepository`. (`createPrismaRepository` is also an alias in core bu
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `model` | `string` | Client key. Required for cache + compose. |
-| `scalarFields` | `Record<string, string>` | `Prisma.XScalarFieldEnum`; inferred from meta if omitted. |
+| `model` | `string` | Client key. **Required.** |
 | `cache` | `CacheOptions \| true` | `true` → `{ ttl: 86400, sensitiveFields: ['password'] }`. |
-| `lock` | `true \| string \| RepositoryLockConfig` | `true` / client key / Pascal name / `@@map` table. |
-| `schemaPath` | `string` | Lock/schema helpers when global meta is missing. |
-| `primaryKey` | `string \| string[]` | `*ById` + row locks. Default: meta PK or `id`. Composite → Prisma `a_b: { a, b }` where. |
-| `getDelegate` | `(client) => delegate` | Default `(c) => c[model]`. |
-| `toPayload` | `(data) => payload` | Default identity. Prefer typed factories over this. |
+| `lock` | `true \| RepositoryLockConfig` | `true` resolves table/columns from Prisma meta. |
+| `toPayload` | `(data) => payload` | Default identity. |
+
+Scalars, primary key, and relations come from Prisma meta (`loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf`).
 
 `RepositoryLockConfig`: `{ tableName: string; columns?: Record<string, string> }`.
 
@@ -120,10 +118,10 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 | `ttl` | `86400` | Entity TTL (seconds). |
 | `nullTtl` | — | Negative cache for null results. |
 | `sensitiveFields` | `['password']` | Selects containing these never cache. |
-| `methods` | — | Per-method `{ enabled?, ttl? }` for `getById`, `getThrowById`, `getFirst`, `getThrowFirst`, `getMany`, `getManyPaginate`, `getManyCursor`, `count`, `exists`, `aggregate`, `groupBy`. |
+| `methods` | — | Per-method `{ enabled?, ttl? }`. |
 | `defaultSetCache` | `false` | Reads cache unless caller passes `setCache: false`. |
 | `stampede` | see below | Per-repo stampede overrides. |
-| `compression` | — | Hint for adapters (`'none' \| 'zstd' \| 'lz4'`). Redis adapter uses `'none' \| 'gzip'`. |
+| `strictInvalidation` | `false` | When true, invalidation failures rethrow. |
 
 ### `InvalidateMode`
 
@@ -133,11 +131,6 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 | `entity` | Entity keys only |
 | `queries` | Query index only |
 | `none` | Skip — **required inside transactions** |
-| `stale` | Core treats like entity+queries (adapter may layer SWR) |
-
-### Allowlist
-
-`setRegisteredCacheModels(['user', 'product'])`. Empty/unset = fail-open. When set, a repo with `cache` whose `model` is missing throws at init.
 
 ### Key schema
 
@@ -150,7 +143,7 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 {prefix}:v2:repo:{model}:t:{tag}:__idx
 ```
 
-Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal` (`__date`, `__bigint`, …). Bump to v2 keys causes a one-time miss after upgrade.
+Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal`. Custom revive: `createRedisJsonReviver` from `@prismakit/redis`.
 
 ### Debug
 
@@ -169,8 +162,6 @@ Hits/misses/bypasses via `cacheDebugStorage` from `@prismakit/core`.
 | `maxRetries` | `10` |
 | `backoff` | `'exponential'` (`'fixed'` also valid) |
 | `totalTimeoutMs` | `3000` |
-
-In-process `singleflight` is also used. If Redis is down, fail open.
 
 ### Adapters
 
@@ -193,11 +184,11 @@ new RedisCacheAdapter({
 new MemoryCacheAdapter({ prefix: 'test', maxSize: 1000, defaultTtl: 300 });
 ```
 
-Custom: implement `CacheAdapter` (`get`/`set`/`del`/`setNx`/`setWithIndex`/`invalidateByIndex`/`saddAndExpire`/`smembers`/`isReady`/`getPrefix` + `safe*` wrappers). `get`/`safeGet` **must** return a fresh copy (structuredClone / JSON). Prefer fail-open `safe*` semantics.
+Custom: implement `CacheAdapter`. Prefer fail-open `safe*` semantics.
 
 ## Auto-compose
 
-`splitSelect` keeps scalars (+ FK fields from DMMF) for the Prisma query. Relation keys load via the target repository. Target PK is always injected into the nested select.
+`splitSelect` keeps scalars (+ FK fields from meta) for the Prisma query. Relation keys load via the target repository. Target PK is always injected into the nested select.
 
 Load meta once at bootstrap:
 
@@ -208,8 +199,6 @@ loadPrismaMetaFromDmmf(Prisma.dmmf);                 // Prisma 5/6
 loadPrismaMetaFromSchema('prisma/schema.prisma');    // Prisma 7 (no Prisma.dmmf)
 ```
 
-Without meta, AutoComposer cannot resolve renamed relations; pass `schemaPath` or `dmmf`. Relation field → registry key is source-scoped (`Category.products` vs `Tag.products` can target different models).
-
 Validate: `npx prismakit validate --auto-register` or `assertSelectComposeValid`.
 
 ### `ComposeOptions` (global via `setComposeOptions`)
@@ -219,7 +208,6 @@ Validate: `npx prismakit validate --auto-register` or `assertSelectComposeValid`
 | `maxDepth` | `10` | Max relation nesting. |
 | `parallel` | `true` | Same-level relations via `Promise.all`. |
 | `setCache` | `true` | Nested fetches pass `setCache: true` unless parent has `tx` / `setCache: false`. |
-| `tx` | — | Per-call only; forwarded to nested `getMany`. |
 
 Related repos must be registered on `RepositoryRegistry`.
 
@@ -235,7 +223,7 @@ Related repos must be registered on `RepositoryRegistry`.
 | `nowait` | Fail immediately if locked. |
 | `skipLocked` | Skip locked rows. **Cannot** combine with `nowait`. |
 
-`lock: true` / `'wallet'` / `'Wallet'` / `'wallets'` resolve via Prisma meta when available, else `buildLockConfigFromSchema`.
+`lock: true` resolves via Prisma meta. Explicit: `{ tableName, columns? }`.
 
 ## Telemetry
 
@@ -265,18 +253,12 @@ npx prismakit validate [--schema <path>] [--auto-register] [--no-assert]
 npx prismakit help
 ```
 
-Default generate output: `src/modules/<kebab>/repositories/<kebab>.repository.ts`.
-
-`--full` emits Nest module + controller + service + select/where types. Register `*Module` in `app.module.ts` afterwards.
-
 ## ESLint
 
 ```js
 import prismakit from '@prismakit/eslint-plugin';
 export default [prismakit.configs.recommended];
 ```
-
-`recommended` turns all rules on at **error**.
 
 | Rule | Forbids |
 |------|---------|
@@ -285,23 +267,15 @@ export default [prismakit.configs.recommended];
 | `prismakit/require-transaction-service` | `.$transaction` in feature code |
 | `prismakit/require-cached-repo-provider` | Cached repo class missing from Nest `providers` |
 
-Allowed path patterns (forward slashes):
-
-- `**/repositories/**`
-- `**/infrastructure/prisma/**`
-- `**/node_modules/**`
-- `packages/(core|nestjs|redis)/**` (PrismaKit monorepo)
-
-Mirror this layout rather than weakening the plugin.
+Allowed path patterns: `**/repositories/**`, `**/infrastructure/prisma/**`.
 
 ## Bootstrap (plain Node)
 
 ```typescript
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
   createRepository,
   loadPrismaMetaFromSchema,
-  setRegisteredCacheModels,
   setComposeOptions,
   setTelemetry,
   RepositoryRegistry,
@@ -311,7 +285,6 @@ import { RedisCacheAdapter } from '@prismakit/redis';
 
 const prisma = new PrismaClient();
 loadPrismaMetaFromSchema('prisma/schema.prisma');
-setRegisteredCacheModels(['user', 'post']);
 setComposeOptions({ maxDepth: 6, parallel: true, setCache: true });
 setTelemetry({ enabled: true, onEvent: (e) => console.debug('[pk]', e.type) });
 

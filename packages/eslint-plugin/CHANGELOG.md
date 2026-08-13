@@ -1,5 +1,17 @@
 # @prismakit/eslint-plugin
 
+## 4.0.0
+
+### Major Changes
+
+- Breaking: clean public API for 4.0 (pre-stable).
+
+  - Core: remove factory aliases (`defineRepository`, `createPrismaRepository`); drop `cacheModels` / `setRegisteredCacheModels`; remove dead options (`compression`, `invalidate: 'stale'`, string `lock`, public `scalarFields`/`primaryKey`/`schemaPath`/`getDelegate`); slim public exports to app-facing surface.
+  - Nest: `createDefineRepo` + `createInjectableRepository` only; remove phantoms (`defineInjectableRepository` / `defineRepo` / `defineRepository`) and `createPrismaRepository`; fold `queryLog` into `telemetry` (`slowThreshold` / `onSlowQuery`); Nest barrel no longer re-exports core kitchen sink.
+  - Redis: remove deprecated `redisJsonReviver`.
+  - CLI: generate scaffolds `defineAppRepo`; skills resolve from `skills/` only.
+  - See `docs/guide/migration-to-4.md`.
+
 ## 3.2.0
 
 ### Patch Changes

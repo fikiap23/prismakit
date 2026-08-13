@@ -4,6 +4,8 @@ Redis `CacheAdapter` for `@prismakit/core` repositories (ioredis).
 
 Fail-open: cache errors do not break reads/writes.
 
+**Status:** pre-stable (4.0).
+
 [Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [Cache guide](https://github.com/fikiap23/prismakit/blob/master/docs/guide/cache.md) · [GitHub](https://github.com/fikiap23/prismakit)
 
 ## Install
@@ -48,6 +50,18 @@ PrismaKitModule.forRoot({
   cache: new RedisCacheAdapter({ prefix: 'myapp' }),
 });
 ```
+
+### JSON codec
+
+Tagged JSON for `Date`, `BigInt`, `Bytes`, and Prisma `Decimal`. Custom revive:
+
+```typescript
+import { createRedisJsonReviver } from '@prismakit/redis';
+
+const reviver = createRedisJsonReviver({ /* DecimalFactory? */ });
+```
+
+Cache debug (`CACHE_DEBUG=true`, `cacheDebugStorage`, …) lives on `@prismakit/core`.
 
 ## Cache behavior (reminder)
 

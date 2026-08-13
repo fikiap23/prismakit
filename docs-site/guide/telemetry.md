@@ -10,7 +10,16 @@ setTelemetry({
 });
 ```
 
-Nest: pass `telemetry` and/or `queryLog` on `PrismaKitModule.forRoot`.
+Nest: pass a single `telemetry` object on `PrismaKitModule.forRoot`:
+
+```typescript
+telemetry: {
+  enabled: true,
+  slowThreshold: 500,
+  onSlowQuery: (e) => logger.warn(e),
+  onEvent: (e) => metrics.record(e),
+}
+```
 
 ## OpenTelemetry
 

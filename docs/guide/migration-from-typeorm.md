@@ -33,11 +33,10 @@ export class UserService {
 **After (PrismaKit Nest)**
 
 ```typescript
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400 },
-});
+}) {}
 
 @Injectable()
 export class UserService {
@@ -60,9 +59,11 @@ export class UserService {
 Plain Node without Nest:
 
 ```typescript
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
 const UserRepository = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400 },
 });
 const users = new UserRepository({ prisma, cache });
@@ -131,7 +132,7 @@ TypeORM cascade options on relations often hide deletes. With PrismaKit:
 ## 5. Checklist
 
 - [ ] Prisma schema covers former entities; migrate data once
-- [ ] One PrismaKit repository per model (cache registered in `cacheModels` when used)
+- [ ] One PrismaKit repository per model (`cache` on the repo when caching)
 - [ ] Services only call repositories / helpers
 - [ ] Transactions via `execTx` + `afterCommit` invalidation
 - [ ] Soft deletes are explicit fields + where filters

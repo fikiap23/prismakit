@@ -5,14 +5,9 @@ import {
   RepositoryRegistry,
   type CacheAdapter,
   type DefaultToPayload,
-  type HasCacheFromOptions,
   type PrismaClientLike,
   type RepositoryOptions,
-  type RepositoryOptionsFromTypes,
   type RepositoryInstance,
-  type RepositoryApiFromTypes,
-  type RepoPayloadHKT,
-  type RepoTypesDefinition,
 } from '@prismakit/core';
 
 import { markPrismakitRepo } from './inherit-repo-inject';
@@ -21,41 +16,9 @@ import { PRISMAKIT_CACHE, PRISMAKIT_PRISMA } from './tokens';
 /**
  * Wraps `createRepository` in an `@Injectable()` Nest class.
  *
- * Strong typing (recommended) — one types bag, no runtime `toPayload`:
- *
- * ```ts
- * type UserPayloadOf<S> = S extends Prisma.UserSelect
- *   ? Prisma.UserGetPayload<{ select: S }>
- *   : never;
- *
- * interface UserPayloadHKT extends RepoPayloadHKT {
- *   type(): UserPayloadOf<this['_select']>;
- * }
- *
- * type UserTypes = {
- *   select: Prisma.UserSelect;
- *   create: Prisma.UserCreateInput;
- *   update: Prisma.UserUpdateInput;
- *   where: Prisma.UserWhereInput;
- *   orderBy: Prisma.UserOrderByWithRelationInput;
- *   payload: UserPayloadHKT;
- * };
- *
- * export const UserRepository = createInjectableRepository<UserTypes>({
- *   model: 'user',
- *   cache: { ttl: 86400 },
- *   lock: 'users',
- * });
- * ```
+ * Prefer {@link createDefineRepo} for TypeMap-bound apps. This factory is the
+ * low-level escape hatch when TypeMap binding is unavailable (results are thinly typed).
  */
-export function createInjectableRepository<
-  TTypes extends RepoTypesDefinition,
-  const O extends RepositoryOptionsFromTypes<TTypes>,
->(
-  options: O,
-): new (
-  ...args: never[]
-) => RepositoryApiFromTypes<TTypes, HasCacheFromOptions<O>>;
 export function createInjectableRepository<
   TSelect extends object = object,
   TCreateInput = unknown,
@@ -67,17 +30,15 @@ export function createInjectableRepository<
   ) => unknown = DefaultToPayload<TSelect>,
   TRepoModel extends string = never,
 >(
-  options: TSelect extends { payload: RepoPayloadHKT }
-    ? never
-    : RepositoryOptions<
-        TSelect,
-        TCreateInput,
-        TUpdateInput,
-        TWhereInput,
-        TOrderBy,
-        TToPayload,
-        TRepoModel
-      >,
+  options: RepositoryOptions<
+    TSelect,
+    TCreateInput,
+    TUpdateInput,
+    TWhereInput,
+    TOrderBy,
+    TToPayload,
+    TRepoModel
+  >,
 ): new (
   ...args: never[]
 ) => RepositoryInstance<
@@ -88,11 +49,7 @@ export function createInjectableRepository<
   TOrderBy,
   TToPayload,
   TRepoModel
->;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createInjectableRepository(
-  options: RepositoryOptions<any, any, any, any, any, any, any>,
-): any {
+> {
   const RepoClass = createRepository(options);
 
   @Injectable()
@@ -114,10 +71,15 @@ export function createInjectableRepository(
     hasCache: options.cache != null,
   });
 
-  // Overload signatures own the public type; do not re-derive from NestRepository
-  // (that erases generics and surfaces as `any` in IDEs).
-  return NestRepository;
+  return NestRepository as new (
+    ...args: never[]
+  ) => RepositoryInstance<
+    TSelect,
+    TCreateInput,
+    TUpdateInput,
+    TWhereInput,
+    TOrderBy,
+    TToPayload,
+    TRepoModel
+  >;
 }
-
-/** Migration alias for {@link createInjectableRepository}. */
-export const createPrismaRepository = createInjectableRepository;

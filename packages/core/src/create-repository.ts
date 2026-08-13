@@ -1,5 +1,4 @@
 import type { CacheAdapter } from './cache/cache-adapter.interface';
-import { validateCacheConfig } from './cache/validate-cache-config';
 import {
   buildEntityKey,
   buildQueryKey,
@@ -98,32 +97,17 @@ export type RepositoryOptions<
   ) => unknown = DefaultToPayload<TSelect>,
   TRepoModel extends string = never,
 > = {
-  model?: TRepoModel;
+  /** Prisma client key (`user`, `productImage`). Required. */
+  model: TRepoModel;
   /** Cache config, or `true` for `{ ttl: 86400, sensitiveFields: ['password'] }`. */
   cache?: CacheOptions | true;
   /**
-   * Lock config, DB table name / client model key (resolved via meta or schema),
-   * or `true` to resolve from Prisma meta / schema using `model`.
+   * `true` resolves table/columns from Prisma meta, or pass an explicit
+   * `{ tableName, columns }` override.
    */
-  lock?: RepositoryLockConfig | string | true;
-  schemaPath?: string;
-  /**
-   * Prisma model delegate accessor. Defaults to `(client) => client[model]`
-   * when `model` is set.
-   */
-  getDelegate?: (client: PrismaClientLike) => PrismaModelDelegate;
+  lock?: RepositoryLockConfig | true;
   /** Maps raw Prisma results to the public payload type. Defaults to identity. */
   toPayload?: TToPayload;
-  /**
-   * Scalar field enum for select-split / compose. When omitted, filled from
-   * Prisma meta (`loadPrismaMetaFromDmmf`) for `model` if available.
-   */
-  scalarFields?: Record<string, string>;
-  /**
-   * Primary key field(s) for `*ById` / row locks.
-   * Defaults to Prisma meta PK or `id`. Pass an array for composite PKs.
-   */
-  primaryKey?: string | string[];
 };
 
 /**
@@ -156,49 +140,23 @@ function resolveCacheOptions(
 }
 
 function resolveLockConfig(
-  lock: RepositoryLockConfig | string | true | undefined,
-  schemaPath?: string,
-  model?: string,
+  lock: RepositoryLockConfig | true | undefined,
+  model: string,
 ): RepositoryLockConfig | undefined {
   if (lock === true) {
-    if (!model) {
-      throw new Error(
-        '[createRepository] lock: true requires model so table/columns can be resolved',
-      );
-    }
-    return (
-      buildLockConfigFromMeta(model) ??
-      buildLockConfigFromSchema(model, schemaPath)
-    );
-  }
-  if (typeof lock === 'string') {
-    return (
-      buildLockConfigFromMeta(lock) ??
-      buildLockConfigFromSchema(lock, schemaPath)
-    );
+    return buildLockConfigFromMeta(model) ?? buildLockConfigFromSchema(model);
   }
   return lock;
 }
 
-function resolveScalarFields(
-  model: string | undefined,
-  scalarFields?: Record<string, string>,
-): Record<string, string> | undefined {
-  if (scalarFields) return scalarFields;
-  if (!model) return undefined;
+function resolveScalarFields(model: string): Record<string, string> | undefined {
   const meta = getModelMeta(model);
   return meta ? { ...meta.scalarFields } : undefined;
 }
 
-function resolvePrimaryKey(
-  model: string | undefined,
-  primaryKey?: string | string[],
-): string | string[] {
-  if (primaryKey) return primaryKey;
-  if (model) {
-    const fromMeta = getModelMeta(model)?.primaryKey;
-    if (fromMeta) return fromMeta;
-  }
+function resolvePrimaryKey(model: string): string | string[] {
+  const fromMeta = getModelMeta(model)?.primaryKey;
+  if (fromMeta) return fromMeta;
   return 'id';
 }
 
@@ -292,15 +250,8 @@ function cloneForCompose<T>(value: T): T {
 }
 
 function resolveGetDelegate(
-  model: string | undefined,
-  getDelegate?: (client: PrismaClientLike) => PrismaModelDelegate,
+  model: string,
 ): (client: PrismaClientLike) => PrismaModelDelegate {
-  if (getDelegate) return getDelegate;
-  if (!model) {
-    throw new Error(
-      '[createRepository] getDelegate is required when model is not set',
-    );
-  }
   return (client: PrismaClientLike) => {
     const delegate = client[model];
     if (delegate == null || typeof delegate !== 'object') {
@@ -366,9 +317,6 @@ export function createRepository(options: RepositoryOptions<any, any, any, any, 
   return createRepositoryImpl(options) as any;
 }
 
-/** Preferred alias — same as {@link createRepository}. */
-export const defineRepository = createRepository;
-
 function createRepositoryImpl<
   TSelect extends object = object,
   TCreateInput = unknown,
@@ -396,65 +344,43 @@ function createRepositoryImpl<
     TToPayload
   >;
 
-  ensurePrismaMeta({ schemaPath: options.schemaPath });
+  if (!options.model) {
+    throw new Error('[createRepository] model is required');
+  }
 
+  ensurePrismaMeta();
+
+  const modelName = options.model;
   const cacheOpts = resolveCacheOptions(options.cache);
-  const lockConfig = resolveLockConfig(
-    options.lock,
-    options.schemaPath,
-    options.model,
-  );
-  const getDelegate = resolveGetDelegate(options.model, options.getDelegate);
+  const lockConfig = resolveLockConfig(options.lock, modelName);
+  const getDelegate = resolveGetDelegate(modelName);
   const toPayload = resolveToPayload<TSelect, TToPayload>(options.toPayload);
-  const scalarFields = resolveScalarFields(options.model, options.scalarFields);
-  const primaryKey = resolvePrimaryKey(options.model, options.primaryKey);
+  const scalarFields = resolveScalarFields(modelName);
+  const primaryKey = resolvePrimaryKey(modelName);
   const relationLocalFks = (() => {
-    const meta = options.model ? getModelMeta(options.model) : undefined;
+    const meta = getModelMeta(modelName);
     if (!meta) return undefined;
     return Object.fromEntries(
       Object.entries(meta.relations).map(([k, v]) => [k, v.localFields]),
     );
   })();
 
-  const cacheConfigured = !!options.model && !!cacheOpts;
+  const cacheConfigured = !!cacheOpts;
   const defaultTtl = cacheOpts?.ttl ?? 300;
   const defaultNullTtl = cacheOpts?.nullTtl ?? 60;
-  const modelName = options.model ?? '';
   const sensitiveFields = cacheOpts?.sensitiveFields ?? ['password'];
   const methodConfig = cacheOpts?.methods ?? {};
   const defaultSetCache = cacheOpts?.defaultSetCache === true;
   const stampedeOpts = resolveStampedeOptions(cacheOpts?.stampede);
 
   if (lockConfig) {
-    validateLockConfig(lockConfig, options.schemaPath);
+    validateLockConfig(lockConfig);
   }
 
-  if (cacheConfigured) {
-    validateCacheConfig(modelName);
-  }
-
-  if (scalarFields && !options.model) {
-    console.warn(
-      '[createRepository] scalarFields without model — auto-compose disabled. Add model to repository config.',
-    );
-  }
-
-  if (options.model && !options.scalarFields && !getModelMeta(options.model) && getPrismaMeta()) {
+  if (!getModelMeta(modelName) && getPrismaMeta()) {
     throw new Error(
-      `[createRepository] model "${options.model}" has no Prisma meta. Ensure prisma/schema.prisma exists (or set schemaPath), or pass scalarFields explicitly.`,
+      `[createRepository] model "${modelName}" has no Prisma meta. Ensure prisma/schema.prisma exists, or call loadPrismaMetaFromDmmf / loadPrismaMetaFromSchema at bootstrap.`,
     );
-  }
-
-  if (options.model && options.scalarFields) {
-    const metaSf = getModelMeta(options.model)?.scalarFields;
-    if (metaSf) {
-      const overlap = Object.keys(options.scalarFields).some((k) => k in metaSf);
-      if (!overlap) {
-        throw new Error(
-          `[createRepository] scalarFields do not match model "${options.model}" meta — wrong Prisma.*ScalarFieldEnum?`,
-        );
-      }
-    }
   }
 
   const getModel = (prisma: PrismaClientLike, tx?: PrismaClientLike) =>
@@ -810,13 +736,6 @@ function createRepositoryImpl<
       case 'queries':
         await doInvalidateQueries(cache);
         break;
-      case 'stale':
-        // Soft invalidation: still purge entity + queries (SWR can be layered
-        // by adapters; core treats stale like entity+queries for safety).
-        if (id) await doInvalidateEntity(cache, id);
-        else await doInvalidateAllEntities(cache);
-        await doInvalidateQueries(cache);
-        break;
       case 'none':
         break;
     }
@@ -859,8 +778,8 @@ function createRepositoryImpl<
 
   class Repository {
     constructor(readonly deps: RepositoryDeps) {
-      if (options.model && this.deps.registry) {
-        this.deps.registry.register(options.model, {
+      if (this.deps.registry) {
+        this.deps.registry.register(modelName, {
           repository: this,
           scalarFields,
         });
@@ -2519,25 +2438,3 @@ export type RepositoryInstanceFromTypes<TTypes extends RepoTypesDefinition> =
   RepositoryApiFromTypes<TTypes>;
 
 export type { RepositoryApiFromTypes, RepositoryCtorFromTypes };
-
-/** Migration alias for {@link createRepository}. */
-export const createPrismaRepository = createRepository;
-export type PrismaRepositoryInstance<
-  TSelect extends object = object,
-  TCreateInput = unknown,
-  TUpdateInput = unknown,
-  TWhereInput = unknown,
-  TOrderBy = unknown,
-  TToPayload extends <T extends TSelect>(
-    data: unknown,
-  ) => unknown = DefaultToPayload<TSelect>,
-  TRepoModel extends string = never,
-> = RepositoryInstance<
-  TSelect,
-  TCreateInput,
-  TUpdateInput,
-  TWhereInput,
-  TOrderBy,
-  TToPayload,
-  TRepoModel
->;

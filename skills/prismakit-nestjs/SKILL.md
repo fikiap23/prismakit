@@ -2,14 +2,16 @@
 name: prismakit-nestjs
 description: >-
   PrismaKit NestJS adapter: PrismaKitModule.forRoot/forRootAsync wiring, injectable repositories via
-  createDefineRepo/defineInjectableRepository, TransactionService.execTx with afterCommit invalidation,
-  and PRISMAKIT_* DI tokens. Use when working with @prismakit/nestjs, Nest feature modules that need
-  Prisma data access, or Nest transactions and cache invalidation.
+  createDefineRepo (default) / createInjectableRepository (escape hatch), TransactionService.execTx
+  with afterCommit invalidation, and PRISMAKIT_* DI tokens. Use when working with @prismakit/nestjs,
+  Nest feature modules that need Prisma data access, or Nest transactions and cache invalidation.
 ---
 
 # PrismaKit NestJS
 
 Adapter for NestJS. The data-access contract (layering, cache, compose, locks, ESLint) lives in skill `prismakit` — follow it. This skill covers module wiring, injectable repos, and `TransactionService`.
+
+**Line:** 4.0 (pre-stable). Default factory: **`createDefineRepo` / app `defineAppRepo`**.
 
 ## Bootstrap
 
@@ -32,6 +34,11 @@ import { RedisCacheAdapter } from '@prismakit/redis';
       schemaPath: 'prisma/schema.prisma', // default; Prisma 5/6: dmmf: Prisma.dmmf
       validateCompose: true,
       compose: { maxDepth: 6, parallel: true, setCache: true },
+      telemetry: {
+        enabled: true,
+        slowThreshold: 500,
+        onEvent: (e) => console.debug(e.type),
+      },
     }),
   ],
 })
@@ -40,7 +47,7 @@ export class AppModule {}
 
 `forRootAsync` when cache/URL come from `ConfigService` — see [examples.md](examples.md).
 
-`schemaPath` defaults to `prisma/schema.prisma`. Always load Prisma meta (`dmmf` or `schemaPath`) so auto-compose and `lock: true` resolve FKs/`@@map` from the schema — no relation-alias map.
+`schemaPath` defaults to `prisma/schema.prisma`. Always load Prisma meta (`dmmf` or `schemaPath`) so auto-compose and `lock: true` resolve FKs/`@@map` from the schema.
 
 ## Factory (one default)
 
@@ -95,14 +102,13 @@ export class AuditLogRepository extends defineAppRepo({
 }) {}
 ```
 
-`scalarFields` is **optional** when `schemaPath` or DMMF meta is loaded (default since 3.1). Omit it in new repos.
+Per-repo options: `model` (required), `cache?`, `lock?: true | RepositoryLockConfig`, `toPayload?`.
 
-Escape hatches (do not use as the app default):
+Escape hatch (do not use as the app default):
 
-- `defineInjectableRepository` from `@prismakit/nestjs` (package alias `defineRepository`) — phantoms + payload HKT when TypeMap is unavailable.
-- `createInjectableRepository` without a types bag — thin, results are `unknown`. Alias: `createPrismaRepository`.
+- `createInjectableRepository` — thin Nest wrapper when TypeMap binding is unavailable (results are thinly typed).
 
-Do not import `defineRepo` from `@prismakit/nestjs` in apps that already bind `createDefineRepo` as `defineAppRepo`.
+Removed in 4.0: `defineInjectableRepository`, `defineRepo`, `defineRepository`, `createPrismaRepository`, Nest `cacheModels`, Nest `queryLog`.
 
 ## Register and inject
 
@@ -200,7 +206,7 @@ await this.tx.execTx(
 
 When the repo options include `cache`, TypeScript exposes `setCache`, `cacheTags`, mutation `invalidate`/`tags`, and `invalidateCache`. Without `cache`, those fields are omitted — do not pass them.
 
-Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). Pass an allowlist only if you want a second check.
+Repository `cache` is the source of truth.
 
 `cache.defaultSetCache: true` makes user-facing reads cache by default; still pass `setCache: false` on auth/uniqueness.
 
@@ -219,12 +225,10 @@ Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). Pass 
 
 | Option | Use |
 |--------|-----|
-| `cacheModels` | Optional extra allowlist (omit — repo `cache` is enough) |
 | `validateCompose: true` | Assert compose-safe selects on boot |
 | `strictCachedRepos` | Fail boot if a `cache` repo class is not in Nest `providers` (default `true`) |
 | `compose` | `{ maxDepth, parallel, setCache }` |
-| `telemetry` | `{ enabled: true, onEvent }` or `createPrismaKitTelemetry()` from `@prismakit/opentelemetry` |
-| `queryLog` | `{ slowThreshold, onSlowQuery }` — enables telemetry / `query.slow` |
+| `telemetry` | `{ enabled, slowThreshold, onSlowQuery, onEvent }` or `createPrismaKitTelemetry()` |
 | `autoRegisterModels` | `true` or `string[]` — stub repos for compose-only models |
 
 ## Scaffolding

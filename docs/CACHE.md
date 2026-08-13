@@ -10,7 +10,7 @@ Reads use cache **only when `setCache: true`**.
 - Cache only when `setCache: true` **and** repo has `model` + `cache`
 - Never cache auth / uniqueness / sensitive selects
 - Inside transactions: cache skipped; invalidate in `afterCommit`
-- Optional Nest allowlist: `PrismaKitModule.forRoot({ cacheModels: [...] })`
+- Repository `cache` is the only allowlist (no Nest `cacheModels` in 4.0)
 
 ## Invalidate modes
 
@@ -23,4 +23,4 @@ Reads use cache **only when `setCache: true`**.
 
 ## Debug
 
-Set `CACHE_DEBUG=true` to record HIT/MISS/BYPASS via `cacheDebugStorage`.
+Set `CACHE_DEBUG=true` to record HIT/MISS/BYPASS via `cacheDebugStorage` from `@prismakit/core`.

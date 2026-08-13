@@ -23,7 +23,6 @@ export const userSelectPresets = {
 
 export const UserRepoClass = createRepository({
   model: 'user',
-  // scalarFields: optional when schemaPath/DMMF meta is loaded (default since 3.1)
   cache: {
     ttl: DAY,
     nullTtl: 60,
@@ -202,7 +201,6 @@ import { MemoryCacheAdapter } from '@prismakit/memory';
 
 const UserRepo = createRepository({
   model: 'user',
-  scalarFields: { id: 'id', email: 'email', name: 'name' },
   cache: { ttl: 60 },
 });
 

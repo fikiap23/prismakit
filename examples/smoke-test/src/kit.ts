@@ -26,30 +26,22 @@ export function createSmokeKit(): SmokeRepos {
   const autoCompose = new AutoComposer(registry);
   const deps: RepositoryDeps = { prisma: prisma as any, cache, registry, autoCompose };
 
-  const make = (
-    model: string,
-    primaryKey: string | string[],
-    scalarFields: Record<string, string>,
-  ) =>
+  const make = (model: string) =>
     new (createRepository({
       model,
-      primaryKey,
-      scalarFields,
       cache: { ttl: 300, defaultSetCache: false },
     }))(deps);
 
   const repos = {
-    user: make('user', 'uid', { ...Prisma.UserScalarFieldEnum }),
-    profile: make('profile', 'id', { ...Prisma.ProfileScalarFieldEnum }),
-    post: make('post', 'postId', { ...Prisma.PostScalarFieldEnum }),
-    category: make('category', 'code', { ...Prisma.CategoryScalarFieldEnum }),
-    tag: make('tag', 'id', { ...Prisma.TagScalarFieldEnum }),
-    postTag: make('postTag', ['postId', 'tagId'], {
-      ...Prisma.PostTagScalarFieldEnum,
-    }),
-    warehouse: make('warehouse', 'id', { ...Prisma.WarehouseScalarFieldEnum }),
-    stock: make('stock', 'id', { ...Prisma.StockScalarFieldEnum }),
-    comment: make('comment', 'id', { ...Prisma.CommentScalarFieldEnum }),
+    user: make('user'),
+    profile: make('profile'),
+    post: make('post'),
+    category: make('category'),
+    tag: make('tag'),
+    postTag: make('postTag'),
+    warehouse: make('warehouse'),
+    stock: make('stock'),
+    comment: make('comment'),
   };
 
   return { prisma, cache, registry, autoCompose, deps, repos };

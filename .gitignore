@@ -9,3 +9,6 @@ coverage
 .env.*
 !.env.example
 packages/core/src/__tests__/integration/generated
+# CLI package copies skills/rules on build (tsup onSuccess)
+packages/cli/skills
+packages/cli/rules

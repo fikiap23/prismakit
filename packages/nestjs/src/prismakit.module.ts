@@ -14,15 +14,11 @@ import {
   assertSelectComposeValid,
   AutoComposer,
   createRepository,
-  DEFAULT_SCHEMA_PATH,
   ensurePrismaMeta,
+  getPrismaMeta,
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
-  pascalToRepoKey,
-  getSchemaModels,
-  resolveSchemaPath,
   setComposeOptions,
-  setRegisteredCacheModels,
   setTelemetry,
   type CacheAdapter,
   type ComposeOptions,
@@ -49,9 +45,13 @@ import {
 } from './inherit-repo-inject';
 import { TransactionService } from './transaction.service';
 
-export type QueryLogOptions = {
-  /** Log queries slower than this many ms (default 500). */
-  slowThreshold?: number;
+const DEFAULT_SCHEMA_PATH = 'prisma/schema.prisma';
+
+export type NestTelemetryOptions = TelemetryOptions & {
+  /**
+   * Convenience callback for `query.slow` events.
+   * Setting this (or `slowThreshold`) enables telemetry unless `enabled: false`.
+   */
   onSlowQuery?: (event: {
     model?: string;
     method?: string;
@@ -78,23 +78,16 @@ export type PrismaKitModuleOptions = {
   schemaPath?: string;
   /** When true, run assertSelectComposeValid on module init. */
   validateCompose?: boolean;
-  /**
-   * Optional extra allowlist. Repository `cache` config is the source of truth —
-   * omit this (fail-open). When set, `cache` is only allowed for these model keys.
-   */
-  cacheModels?: readonly string[];
   /** Global auto-compose options (maxDepth, parallel, setCache). */
   compose?: ComposeOptions;
-  /** Telemetry / metrics hooks. */
-  telemetry?: TelemetryOptions;
-  /** Slow-query logging (wires into telemetry). */
-  queryLog?: QueryLogOptions;
+  /** Telemetry / slow-query hooks. */
+  telemetry?: NestTelemetryOptions;
   /**
    * Auto-register read-only stub repositories for models that lack an explicit
    * Nest provider — eliminates compose-only stub repos.
    *
-   * - `true` — register all models from schema/DMMF
-   * - `string[]` — register only these client keys (e.g. `['courierInvoiceItem']`)
+   * - `true` — register all models from loaded Prisma meta
+   * - `string[]` — register only these client keys (e.g. `['productImage']`)
    */
   autoRegisterModels?: boolean | readonly string[];
   /**
@@ -119,28 +112,35 @@ export type PrismaKitModuleAsyncOptions = {
 };
 
 function wireTelemetry(options: PrismaKitModuleOptions): void {
-  const userHandler = options.telemetry?.onEvent;
-  const queryLog = options.queryLog;
-  const threshold = queryLog?.slowThreshold ?? 500;
-  const enabled =
-    options.telemetry?.enabled === true || queryLog !== undefined;
+  const tel = options.telemetry;
+  if (!tel) return;
 
-  if (!enabled && !userHandler && !queryLog) return;
+  const onSlowQuery = tel.onSlowQuery;
+  const threshold = tel.slowThreshold ?? (onSlowQuery ? 500 : undefined);
+  const enabled =
+    tel.enabled === true ||
+    tel.onEvent != null ||
+    onSlowQuery != null ||
+    threshold != null;
+
+  if (!enabled || tel.enabled === false) {
+    if (tel.enabled === false) {
+      setTelemetry({ enabled: false });
+    }
+    return;
+  }
 
   setTelemetry({
     enabled: true,
-    slowThreshold:
-      queryLog !== undefined
-        ? threshold
-        : options.telemetry?.slowThreshold,
+    slowThreshold: threshold,
     onEvent: (event: TelemetryEvent) => {
-      userHandler?.(event);
-      if (queryLog?.onSlowQuery && event.type === 'query.slow') {
-        queryLog.onSlowQuery({
+      tel.onEvent?.(event);
+      if (onSlowQuery && event.type === 'query.slow') {
+        onSlowQuery({
           model: event.model,
           method: event.method,
           durationMs: event.durationMs,
-          thresholdMs: event.thresholdMs ?? threshold,
+          thresholdMs: event.thresholdMs ?? threshold ?? 500,
         });
       }
     },
@@ -154,9 +154,6 @@ function resolvedSchemaPath(options: PrismaKitModuleOptions): string {
 }
 
 function applyModuleOptions(options: PrismaKitModuleOptions): void {
-  if (options.cacheModels) {
-    setRegisteredCacheModels(options.cacheModels);
-  }
   if (options.dmmf) {
     loadPrismaMetaFromDmmf(options.dmmf);
   } else {
@@ -190,16 +187,14 @@ function autoRegisterStubRepos(
   if (Array.isArray(options.autoRegisterModels)) {
     models = [...options.autoRegisterModels];
   } else {
-    try {
-      models = getSchemaModels(
-        resolveSchemaPath(resolvedSchemaPath(options)),
-      ).map((m) => pascalToRepoKey(m.name));
-    } catch {
+    const meta = getPrismaMeta();
+    if (!meta) {
       console.warn(
-        '[PrismaKit] autoRegisterModels: true requires schemaPath or an explicit model list',
+        '[PrismaKit] autoRegisterModels: true requires schemaPath/dmmf so Prisma meta is loaded',
       );
       return;
     }
+    models = Object.keys(meta);
   }
 
   for (const model of models) {

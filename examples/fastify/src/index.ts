@@ -36,7 +36,6 @@ const prisma = {
 
 const UserRepository = createRepository({
   model: 'user',
-  scalarFields: { id: 'id', email: 'email', name: 'name' },
   cache: { ttl: 60 },
 });
 

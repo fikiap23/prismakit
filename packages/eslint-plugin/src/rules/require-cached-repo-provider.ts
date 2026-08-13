@@ -5,12 +5,9 @@ import type { ObjectExpression } from 'estree';
 
 const REPO_FACTORIES = new Set([
   'defineAppRepo',
-  'defineRepo',
-  'defineRepository',
-  'defineInjectableRepository',
   'createInjectableRepository',
-  'createPrismaRepository',
   'createRepository',
+  'createDefineRepo',
 ]);
 
 function calleeName(node: { type: string; callee?: unknown }): string | undefined {

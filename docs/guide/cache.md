@@ -12,7 +12,7 @@ Service → Repository → CacheAdapter? → Prisma → Database
 
 A read uses the cache **only when all of these are true**:
 
-1. You pass `setCache: true`
+1. You pass `setCache: true` (or repo `cache.defaultSetCache: true` without `setCache: false`)
 2. The repository has `model` + `cache` config
 3. There is no `tx` (transactions never cache)
 4. The method is not disabled in `cache.methods`
@@ -23,7 +23,7 @@ If Redis is down, the Redis adapter **fails open** — queries still hit Prisma.
 ## Configure cache on a repository
 
 ```typescript
-createInjectableRepository({
+defineAppRepo({
   model: 'user',
   cache: {
     ttl: 86400,           // entity TTL (seconds)
@@ -42,6 +42,7 @@ Shorthand:
 
 ```typescript
 cache: true  // → { ttl: 86400, sensitiveFields: ['password'] }
+// with createDefineRepo defaults: inherits app-wide ttl / nullTtl / defaultSetCache
 ```
 
 ## When to use `setCache: true`
@@ -118,21 +119,9 @@ await repo.getMany({
 await repo.invalidateCache({ tags: [`category:${categoryId}`] });
 ```
 
-## Allowlist (`cacheModels`)
+## Source of truth
 
-The repository `cache` block is the source of truth. Omit `cacheModels` (fail-open) — a model caches if and only if its repository sets `cache`.
-
-`cacheModels` is an optional extra allowlist for teams that want a second check:
-
-```typescript
-PrismaKitModule.forRoot({
-  prisma,
-  cache,
-  cacheModels: ['user', 'product'],
-});
-```
-
-If set, a repository that enables `cache` for a model not in the list throws at init.
+The repository `cache` block is the only allowlist. A model caches if and only if its repository sets `cache`. There is no Nest `cacheModels` option in 4.0.
 
 ## TypeScript DX
 
@@ -143,21 +132,24 @@ Repository method types follow the repo `cache` config:
 
 ```typescript
 // no cache → getManyPaginate args have no setCache
-defineRepo({ model: 'sparepart', scalarFields: … });
+defineAppRepo({ model: 'sparepart' });
 
 // cached → setCache / cacheTags available
-defineRepo({ model: 'user', cache: { ttl: 86400 }, scalarFields: … });
+defineAppRepo({ model: 'user', cache: { ttl: 86400 } });
 ```
 
 ## Redis adapter
 
 ```typescript
-import { RedisCacheAdapter } from '@prismakit/redis';
+import { RedisCacheAdapter, createRedisJsonReviver } from '@prismakit/redis';
 
 const cache = new RedisCacheAdapter({
   url: process.env.REDIS_URL, // or host + port
   prefix: 'myapp',
 });
+
+// Custom JSON revive (Date / BigInt / Decimal):
+const reviver = createRedisJsonReviver();
 ```
 
 | Option | Default | Description |
@@ -177,7 +169,7 @@ Keys include a version segment (`v2`) so codec changes invalidate legacy entries
 {prefix}:v2:repo:{model}:t:{tag}:__idx
 ```
 
-The Redis adapter serializes `Date`, `BigInt`, `Bytes`, and Prisma `Decimal` via tagged JSON (`__date`, `__bigint`, etc.). After upgrading to 3.1, expect a one-time cache miss while v2 keys repopulate.
+The Redis adapter serializes `Date`, `BigInt`, `Bytes`, and Prisma `Decimal` via tagged JSON (`__date`, `__bigint`, etc.).
 
 ## Debug
 

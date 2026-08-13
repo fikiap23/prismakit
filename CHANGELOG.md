@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Per-package changelogs under `packages/*/CHANGELOG.md` are the source of truth for patch/minor notes after 3.0. This root file tracks major theme releases.
 
+## [4.0.0]
+
+### Breaking
+- **Clean public API** (library still **pre-stable** — majors may break until a stability commitment)
+- Remove factory aliases (`defineRepository`, `createPrismaRepository`) and Nest phantoms (`defineInjectableRepository` / `defineRepo` / package `defineRepository`)
+- Remove `cacheModels` / `setRegisteredCacheModels`; repo `cache` is the only allowlist
+- Fold Nest `queryLog` into `telemetry` (`slowThreshold`, `onSlowQuery`, `onEvent`)
+- Require Prisma meta for scalars/PK; drop public `scalarFields` / `primaryKey` / per-repo `schemaPath` / `getDelegate`; `lock` is `true | RepositoryLockConfig` only
+- Remove dead options: `CacheOptions.compression`, `invalidate: 'stale'`
+- Slim `@prismakit/core` exports (internals unexported); Nest barrel is Nest-only
+- Redis: remove deprecated `redisJsonReviver`
+- CLI `generate` scaffolds `defineAppRepo`; see `docs/guide/migration-to-4.md`
+
 ## [3.2.0]
 
 ### Added

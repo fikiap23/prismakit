@@ -1,5 +1,13 @@
 # @prismakit/example-smoke-test
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @prismakit/core@4.0.0
+  - @prismakit/memory@4.0.0
+
 ## 0.0.5
 
 ### Patch Changes

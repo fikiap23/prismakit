@@ -22,7 +22,6 @@ Task Progress:
 - [ ] `prisma` is the shared client instance
 - [ ] Prisma meta is loaded: `dmmf: Prisma.dmmf` (Prisma 5/6) or `schemaPath: 'prisma/schema.prisma'` (Prisma 7)
 - [ ] Production cache uses `RedisCacheAdapter` with a stable `prefix`
-- [ ] `cacheModels` is omitted (repo `cache` is source of truth), or lists every cached model if an allowlist is used
 - [ ] `validateCompose: true` is on for apps that nest relations in `select`
 - [ ] Cached repo classes are in feature `providers` (`strictCachedRepos` fails boot otherwise)
 
@@ -32,7 +31,7 @@ Task Progress:
 - [ ] Feature repos call that binder — not `createInjectableRepository` unless types are intentionally thin
 - [ ] `export interface XRepository extends InstanceType<typeof XRepository> {}` (infers cache from options; do not use a same-name `type` alias)
 - [ ] Repo class is in `providers` and `exports` of the feature module
-- [ ] `lock: true` (or table/client key) is set when any call uses `lock`
+- [ ] `lock: true` (or `{ tableName, columns }`) is set when any call uses `lock`
 
 ## DI
 

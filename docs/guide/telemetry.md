@@ -9,6 +9,7 @@ import { setTelemetry } from '@prismakit/core';
 
 setTelemetry({
   enabled: true,
+  slowThreshold: 500,
   onEvent: (event) => {
     // Wire to Prometheus / DataDog / OpenTelemetry
     console.debug('[pk]', event.type, event);
@@ -34,18 +35,17 @@ PrismaKitModule.forRoot({
   cache,
   telemetry: {
     enabled: true,
-    onEvent: (e) => metrics.record(e),
-  },
-  queryLog: {
     slowThreshold: 500,
     onSlowQuery: (e) =>
       logger.warn(`Slow ${e.model}.${e.method}: ${e.durationMs}ms`),
+    onEvent: (e) => metrics.record(e),
   },
 });
 ```
 
-`queryLog` enables telemetry and sets `slowThreshold` so core also emits `query.slow`.
-`onSlowQuery` is invoked for those slow events.
+`slowThreshold` / `onSlowQuery` enable telemetry (unless `enabled: false`) and emit `query.slow` for slow repository methods.
+
+In 3.x this lived under a separate `queryLog` option — fold those fields into `telemetry` when upgrading. See [Upgrade to 4.0](./migration-to-4.md).
 
 ## OpenTelemetry
 

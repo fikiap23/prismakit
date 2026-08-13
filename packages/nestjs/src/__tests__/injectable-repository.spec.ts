@@ -50,7 +50,6 @@ describe('createInjectableRepository DI', () => {
 
     const Repo = createInjectableRepository({
       model: 'user',
-      scalarFields: { id: 'id', name: 'name' },
     });
     // Nest uses positional ctor args matching @Inject order
     const RepoCtor = Repo as unknown as new (

@@ -18,11 +18,11 @@ These rules are the data-access contract for PrismaKit apps.
 
 | Required | How |
 |----------|-----|
-| Reads/writes | `*Repository` from `createRepository` / `createInjectableRepository` |
+| Reads/writes | `*Repository` from `createRepository` / Nest `createDefineRepo` (`defineAppRepo`) |
 | Transactions (Nest) | `TransactionService.execTx(fn, afterCommit?)` |
 | Tx writes | `invalidate: 'none'` then `invalidateCache` in `afterCommit` |
 | User-facing reads | `setCache: true` when repo has cache config |
-| Relations in select | `model` on source repo; load `dmmf: Prisma.dmmf` (or pass `scalarFields`) — [auto-compose](guide/auto-compose.md) |
+| Relations in select | `model` on source repo; load meta (`schemaPath` / `dmmf`) — [auto-compose](guide/auto-compose.md) |
 | Cached repository classes | Nest `providers` of a feature module. Missing provider → boot fail (`strictCachedRepos`) and ESLint `require-cached-repo-provider`. `autoRegisterModels` stubs are uncached. |
 | ESLint | `prismakit.configs.recommended` |
 
@@ -37,6 +37,7 @@ Helpers may inject repositories — **never** Prisma client.
 ## Learn more
 
 - [Getting started](getting-started.md)
+- [Upgrade to 4.0](guide/migration-to-4.md)
 - [Cache](guide/cache.md)
 - [Transactions](guide/transactions.md)
 - [ESLint](reference/eslint.md)

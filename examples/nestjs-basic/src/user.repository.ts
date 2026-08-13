@@ -1,7 +1,6 @@
-import { createInjectableRepository } from '@prismakit/nestjs';
+import { defineAppRepo } from './define-app-repo.js';
 
-export class UserRepository extends createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: { id: 'id', email: 'email', name: 'name' },
-  cache: { ttl: 60 },
+  cache: true,
 }) {}

@@ -10,7 +10,6 @@ import { UserRepository } from './user.repository.js';
     PrismaKitModule.forRoot({
       prisma,
       cache: new MemoryCacheAdapter('example'),
-      cacheModels: ['user'],
     }),
   ],
   controllers: [UserController],

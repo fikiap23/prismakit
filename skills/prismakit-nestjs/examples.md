@@ -2,7 +2,7 @@
 
 Production-shaped snippets. Contract: skill `prismakit` + [SKILL.md](SKILL.md).
 
-## 1. App module (Redis, allowlist, slow-query log)
+## 1. App module (Redis, telemetry)
 
 ```typescript
 // src/app.module.ts
@@ -31,7 +31,8 @@ import { UserModule } from './modules/users/user.module';
         validateCompose: true,
         compose: { maxDepth: 6, parallel: true, setCache: true },
         autoRegisterModels: true,
-        queryLog: {
+        telemetry: {
+          enabled: true,
           slowThreshold: 500,
           onSlowQuery: (e) => {
             console.warn(`Slow ${e.model}.${e.method}: ${e.durationMs}ms`);

@@ -4,7 +4,9 @@ Framework-agnostic Prisma repository factory with **cache-aside**, **auto-compos
 
 Not a Prisma fork — wrap your existing `PrismaClient`.
 
-[Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [Getting started](https://github.com/fikiap23/prismakit/blob/master/docs/getting-started.md) · [GitHub](https://github.com/fikiap23/prismakit)
+**Status:** pre-stable (4.0).
+
+[Documentation](https://github.com/fikiap23/prismakit/blob/master/docs/README.md) · [Getting started](https://github.com/fikiap23/prismakit/blob/master/docs/getting-started.md) · [Migrate to 4.0](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-4.md) · [GitHub](https://github.com/fikiap23/prismakit)
 
 ## Install
 
@@ -16,16 +18,21 @@ pnpm add @prismakit/core
 ## Quick start
 
 ```typescript
-import { createRepository } from '@prismakit/core';
-import { PrismaClient, Prisma } from '@prisma/client';
+import {
+  createRepository,
+  loadPrismaMetaFromSchema,
+} from '@prismakit/core';
+import { PrismaClient } from '@prisma/client';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+// Prisma 5/6: loadPrismaMetaFromDmmf(Prisma.dmmf)
 
 const prisma = new PrismaClient();
 
 const UserRepository = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum, // for auto-compose
-  cache: { ttl: 86400 },                    // or `cache: true`
-  lock: 'users',                            // DB table name (@@map)
+  cache: { ttl: 86400 }, // or `cache: true`
+  lock: true,            // table + columns from Prisma meta
 });
 
 const users = new UserRepository({ prisma /*, cache */ });
@@ -37,17 +44,16 @@ const user = await users.getThrowById({
 });
 ```
 
-`getDelegate` and `toPayload` default from `model` — no boilerplate.
+Only public option: `createRepository`. Meta (scalars, PK, relations) comes from `loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf`.
 
 ## Repository options
 
 | Option | Description |
 |--------|-------------|
-| `model` | Prisma client key (`'user'` → `prisma.user`) |
-| `scalarFields` | Usually `Prisma.XScalarFieldEnum` — enables auto-compose |
+| `model` | Prisma client key (`'user'` → `prisma.user`). **Required.** |
 | `cache` | `CacheOptions` or `true` for defaults |
-| `lock` | Lock config or table name string |
-| `getDelegate` / `toPayload` | Optional overrides |
+| `lock` | `true` (from meta) or `{ tableName, columns? }` |
+| `toPayload` | Optional payload mapper (defaults to identity) |
 
 ## Main methods
 
@@ -62,14 +68,15 @@ const user = await users.getThrowById({
 | `updateMany` / `deleteMany` | Bulk writes by `where` |
 | `invalidateCache` | Manual cache clear |
 
-Cache runs **only** when you pass `setCache: true` and the repo has `cache` config. Never cache auth / uniqueness lookups.
+Cache runs **only** when you pass `setCache: true` (or `defaultSetCache`) and the repo has `cache` config. Never cache auth / uniqueness lookups.
 
 ## NestJS
 
-Prefer [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs) for DI:
+Prefer [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs):
 
 - `PrismaKitModule`
-- `createInjectableRepository`
+- `createDefineRepo` / app `defineAppRepo` (default)
+- `createInjectableRepository` (low-level escape hatch)
 - `TransactionService`
 
 ## Related packages

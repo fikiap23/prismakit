@@ -24,18 +24,19 @@ Expected:
 
 ## Production
 
-Replace the stub with a real client:
+Replace the stub with a real client and load Prisma meta:
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
-import { createRepository } from '@prismakit/core';
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
 import { RedisCacheAdapter } from '@prismakit/redis';
 
+loadPrismaMetaFromSchema('prisma/schema.prisma');
 const prisma = new PrismaClient();
 const UserRepository = createRepository({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400 },
+  lock: true,
 });
 const users = new UserRepository({
   prisma,

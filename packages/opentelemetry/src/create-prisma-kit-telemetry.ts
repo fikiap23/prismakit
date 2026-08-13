@@ -18,7 +18,7 @@ export type CreatePrismaKitTelemetryOptions = {
   prefix?: string;
   /**
    * When set, also enable core `query.slow` emission at this threshold (ms).
-   * Nest `queryLog.slowThreshold` remains the preferred Nest path.
+   * Prefer Nest `telemetry.slowThreshold` / `telemetry.onSlowQuery`.
    */
   slowThreshold?: number;
 };

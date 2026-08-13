@@ -59,11 +59,10 @@ Remove model extensions that duplicate repository methods. Keep client-level ext
 ### 3. Introduce repositories per model
 
 ```typescript
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400 },
-});
+}) {}
 ```
 
 Point services at `UserRepository` instead of the extended client.
@@ -74,8 +73,8 @@ Point services at `UserRepository` instead of the extended client.
 PrismaKitModule.forRoot({
   prisma, // plain or lightly extended client
   cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-  cacheModels: ['user'],
-  autoRegisterModels: true, // optional when schemaPath is set
+  schemaPath: 'prisma/schema.prisma',
+  autoRegisterModels: true,
   telemetry: { enabled: true, onEvent: (e) => logger.debug(e) },
 });
 ```

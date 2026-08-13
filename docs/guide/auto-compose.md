@@ -9,26 +9,24 @@ This keeps cache keys and invalidation per model, and avoids deep nested Prisma 
 On the **source** repository:
 
 1. `model` is set
-2. `scalarFields` is set **or** Prisma DMMF meta is loaded (then scalars are inferred)
+2. Prisma meta is loaded (`schemaPath` / `dmmf` / `loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf`)
 3. Nest: repositories are registered as providers (they self-register into `RepositoryRegistry`)
 4. Related model repositories are also registered
 
 ```typescript
-// Preferred: load DMMF once at bootstrap
 PrismaKitModule.forRoot({
   prisma,
-  dmmf: Prisma.dmmf, // from generated client
+  schemaPath: 'prisma/schema.prisma', // Prisma 7
+  // dmmf: Prisma.dmmf,               // Prisma 5/6
 });
 
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  // scalarFields optional when dmmf is loaded
-});
+}) {}
 
-export const PostRepository = createInjectableRepository({
+export class PostRepository extends defineAppRepo({
   model: 'post',
-  scalarFields: Prisma.PostScalarFieldEnum, // still fine to pass explicitly
-});
+}) {}
 ```
 
 ## Usage
@@ -47,14 +45,14 @@ const post = await this.posts.getThrowById({
 
 What happens:
 
-1. `splitSelect` keeps scalars (+ FK fields from DMMF) for the Prisma query
+1. `splitSelect` keeps scalars (+ FK fields from meta) for the Prisma query
 2. Relation keys are loaded via the target repository (`getMany` / lookups)
 3. AutoComposer **always injects the target primary key** into the nested select (even if you omitted `id`) so rows can be mapped back onto parents
 4. Results are merged into the payload
 
 You can write nested selects without `id` — e.g. `author: { select: { name: true } }` — and compose still works. The injected PK appears on the composed object.
 
-## Free naming (DMMF)
+## Free naming (schema / DMMF)
 
 With `dmmf: Prisma.dmmf` (Prisma 5/6) **or** `schemaPath` (recommended on Prisma 7), PrismaKit reads:
 
@@ -90,7 +88,7 @@ Or at Nest boot:
 ```typescript
 PrismaKitModule.forRoot({
   prisma,
-  dmmf: Prisma.dmmf,
+  schemaPath: 'prisma/schema.prisma',
   validateCompose: true,
 });
 ```

@@ -1,5 +1,12 @@
 # @prismakit/benchmark
 
+## 2.2.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @prismakit/core@4.0.0
+
 ## 2.2.5
 
 ### Patch Changes

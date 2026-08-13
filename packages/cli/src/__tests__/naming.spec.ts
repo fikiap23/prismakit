@@ -20,10 +20,13 @@ describe('cli generate templates', () => {
     expect(files).toHaveLength(1);
     expect(files[0].relativePath).toContain('repositories/product.repository.ts');
     expect(files[0].content).toContain("model: 'product'");
-    expect(files[0].content).toContain('cache: {');
+    expect(files[0].content).toContain('cache: true');
     expect(files[0].content).not.toContain('getDelegate');
     expect(files[0].content).not.toContain('scalarFields');
-    expect(files[0].content).toContain("from '@prismakit/nestjs'");
+    expect(files[0].content).toContain('defineAppRepo');
+    expect(files[0].content).toContain(
+      "from 'src/infrastructure/prisma/define-app-repo'",
+    );
   });
 
   it('emits full Nest module when full: true', () => {

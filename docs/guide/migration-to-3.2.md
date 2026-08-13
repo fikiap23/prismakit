@@ -45,7 +45,7 @@ PrismaKitModule.forRoot({
   prisma,
   cache,
   telemetry: createPrismaKitTelemetry({ slowThreshold: 500 }),
-  // or: queryLog: { slowThreshold: 500 }
+  // 4.0: fold former queryLog into telemetry (see migration-to-4.md)
 });
 ```
 
@@ -66,7 +66,7 @@ SQLite smoke (`examples/smoke-test`) remains the cheap local compose suite.
 1. Bump all `@prismakit/*` to `^3.2.0`.
 2. Re-test composite-PK repositories (`PostTag`, `CartItem`, …).
 3. Re-check infinite-scroll / cursor clients (duplicate first row should be gone).
-4. Optionally wire `@prismakit/opentelemetry` or Nest `queryLog.slowThreshold`.
+4. Optionally wire `@prismakit/opentelemetry` or Nest `telemetry.slowThreshold`.
 5. Run `npx prismakit validate --schema prisma/schema.prisma --auto-register`.
 
-See also: [Upgrade to 3.1](./migration-to-3.1.md) · [Production](./production.md) · [Errors](./errors.md)
+See also: [Upgrade to 3.1](./migration-to-3.1.md) · [Upgrade to 4.0](./migration-to-4.md) · [Production](./production.md) · [Errors](./errors.md)

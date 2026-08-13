@@ -1,6 +1,6 @@
 # AGENTS.md — PrismaKit
 
-Short contract for AI coding agents and humans. Prefer the full guides under [`docs/`](README.md) when implementing features. Current line: **3.2.x**.
+Short contract for AI coding agents and humans. Prefer the full guides under [`docs/`](README.md) when implementing features. Current line: **4.0** (pre-stable).
 
 ## Architecture
 
@@ -26,13 +26,11 @@ import type { Prisma } from '@prisma/client'; // or generated client path
 
 export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
   cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
-  schemaPath: 'prisma/schema.prisma',
 });
 ```
 
 ```typescript
 // user.repository.ts
-import { Prisma } from '@prisma/client';
 import { defineAppRepo } from '../../../infrastructure/prisma/define-app-repo';
 
 export class UserRepository extends defineAppRepo({
@@ -44,7 +42,9 @@ export class UserRepository extends defineAppRepo({
 
 Register the class in the feature module `providers`. Never inject `PrismaClient` / `PrismaService` into services.
 
-Plain Node: `createRepository` from `@prismakit/core`.
+Load meta on the module: `PrismaKitModule.forRoot({ schemaPath: 'prisma/schema.prisma' })` (or `dmmf`).
+
+Plain Node: `createRepository` + `loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf` from `@prismakit/core`.
 
 ## Transactions
 
@@ -81,7 +81,7 @@ npx prismakit skills
 
 ## Enforcement
 
-1. [RULES.md](RULES.md) · [Production](guide/production.md) · [getting-started](getting-started.md)
+1. [RULES.md](RULES.md) · [Production](guide/production.md) · [getting-started](getting-started.md) · [Upgrade to 4.0](guide/migration-to-4.md)
 2. ESLint: `@prismakit/eslint-plugin`
 3. Runtime: lock/cache validation at repository init
 

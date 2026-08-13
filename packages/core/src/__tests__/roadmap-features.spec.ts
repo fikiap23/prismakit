@@ -4,17 +4,18 @@ import {
   expect,
   beforeEach,
 } from 'vitest';
+import { stableHash } from '../cache/stable-hash.util';
+import { singleflight, clearSingleflight } from '../cache/singleflight';
+import { splitSelect } from '../utils/split-select';
 import {
-  stableHash,
-  singleflight,
-  clearSingleflight,
-  splitSelect,
   setComposeOptions,
   getComposeOptions,
+} from '../compose/compose-options';
+import {
   setTelemetry,
   emitTelemetry,
   type TelemetryEvent,
-} from '../index';
+} from '../telemetry/telemetry';
 
 describe('stableHash (FNV)', () => {
   it('is deterministic', () => {

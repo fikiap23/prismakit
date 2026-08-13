@@ -2,6 +2,8 @@
 
 This guide gets you from zero to a working repository. Pick **NestJS** or **plain Node**.
 
+PrismaKit **4.0** is **pre-stable** — see [Upgrade to 4.0](guide/migration-to-4.md).
+
 ## Requirements
 
 - Node.js 20+
@@ -27,19 +29,29 @@ pnpm add -D @prismakit/eslint-plugin @prismakit/cli
 
 ## 1. Create a repository
 
-Thin config — `getDelegate` / `toPayload` are optional when `model` is set:
+### NestJS (default)
+
+Bind `Prisma.TypeMap` once, then define repos with runtime options only:
 
 ```typescript
-import { Prisma } from '@prisma/client';
-import { createInjectableRepository } from '@prismakit/nestjs';
-// plain Node: import { createRepository } from '@prismakit/core';
+// src/infrastructure/prisma/define-app-repo.ts
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client'; // or generated client path
 
-export const UserRepository = createInjectableRepository({
-  model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum, // needed for auto-compose
-  cache: { ttl: 86400 },                    // or `cache: true` for defaults
-  lock: 'users',                            // optional — DB table (@@map)
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
 });
+```
+
+```typescript
+// user.repository.ts
+import { defineAppRepo } from 'src/infrastructure/prisma/define-app-repo';
+
+export class UserRepository extends defineAppRepo({
+  model: 'user',
+  cache: { sensitiveFields: ['password'] },
+  lock: true, // optional — table/columns from Prisma meta
+}) {}
 ```
 
 Or scaffold with the CLI:
@@ -48,9 +60,29 @@ Or scaffold with the CLI:
 npx prismakit generate user --cache
 ```
 
-## 2. Wire the app
+### Plain Node
 
-### NestJS
+```typescript
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
+import { RedisCacheAdapter } from '@prismakit/redis';
+import { PrismaClient } from '@prisma/client';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+// Prisma 5/6: loadPrismaMetaFromDmmf(Prisma.dmmf)
+
+const prisma = new PrismaClient();
+const cache = new RedisCacheAdapter({ prefix: 'myapp' });
+
+const UserRepoClass = createRepository({
+  model: 'user',
+  cache: { ttl: 86400 },
+  lock: true,
+});
+
+const users = new UserRepoClass({ prisma, cache });
+```
+
+## 2. Wire NestJS
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -65,7 +97,11 @@ const prisma = new PrismaClient();
     PrismaKitModule.forRoot({
       prisma,
       cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-      cacheModels: ['user'], // optional strict allowlist
+      schemaPath: 'prisma/schema.prisma', // default; Prisma 5/6: dmmf: Prisma.dmmf
+      telemetry: {
+        enabled: true,
+        slowThreshold: 500,
+      },
     }),
   ],
 })
@@ -80,25 +116,6 @@ Register `UserRepository` in a feature module:
   exports: [UserService, UserRepository],
 })
 export class UserModule {}
-```
-
-### Plain Node
-
-```typescript
-import { createRepository } from '@prismakit/core';
-import { RedisCacheAdapter } from '@prismakit/redis';
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
-const cache = new RedisCacheAdapter({ prefix: 'myapp' });
-
-const UserRepoClass = createRepository({
-  model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
-  cache: { ttl: 86400 },
-});
-
-const users = new UserRepoClass({ prisma, cache });
 ```
 
 ## 3. Use it in a service
@@ -125,8 +142,6 @@ This blocks `PrismaClient` / `prisma.model.*` outside `**/repositories/**`.
 
 ## 5. Install agent skills (recommended)
 
-Same one-liner pattern as other large frameworks. Ships with `@prismakit/cli`:
-
 ```bash
 npx prismakit skills              # commit .cursor/skills with the app
 npx prismakit skills --global     # all projects on this machine
@@ -141,6 +156,7 @@ npx skills add fikiap23/prismakit
 
 ## Next steps
 
+- [Upgrade to 4.0](guide/migration-to-4.md)
 - [Production guide](guide/production.md) — supported matrix and checklist
 - [Reference Nest starter](https://github.com/fikiap23/starter-prismakit-nestjs) — Nest 11 + Prisma 7 + Redis + MinIO
 - [Repository methods](guide/repository.md)

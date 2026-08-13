@@ -6,10 +6,15 @@ PrismaKitModule.forRoot({
   cache: new RedisCacheAdapter({ prefix: 'myapp' }),
   schemaPath: 'prisma/schema.prisma',
   strictCachedRepos: true,
+  telemetry: {
+    enabled: true,
+    slowThreshold: 500,
+    onEvent: (e) => console.debug(e.type),
+  },
 });
 ```
 
-- Repositories: `createDefineRepo` / `createInjectableRepository` — register in feature `providers`
+- Repositories: `createDefineRepo` / app `defineAppRepo` (default). Escape hatch: `createInjectableRepository`
 - Transactions: `TransactionService.execTx(fn, afterCommit?)`
 - Do **not** inject `PrismaClient` in services
 

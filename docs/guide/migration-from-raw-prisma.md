@@ -12,7 +12,7 @@ pnpm add @prismakit/memory                  # optional (tests / local)
 pnpm add -D @prismakit/eslint-plugin @prismakit/cli
 ```
 
-Wire `PrismaKitModule.forRoot({ prisma, cache?, cacheModels? })` (Nest) or construct repositories with `{ prisma, cache }`.
+Wire `PrismaKitModule.forRoot({ prisma, cache?, schemaPath? })` (Nest) or construct repositories with `{ prisma, cache }` after `loadPrismaMetaFromSchema`.
 
 ## 2. Map delegates → repository methods
 
@@ -35,11 +35,10 @@ Wire `PrismaKitModule.forRoot({ prisma, cache?, cacheModels? })` (Nest) or const
 Create the repo once:
 
 ```typescript
-export const UserRepository = createInjectableRepository({
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
   cache: { ttl: 86400, sensitiveFields: ['password'] },
-});
+}) {}
 ```
 
 ## 3. When to use `setCache`

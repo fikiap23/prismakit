@@ -11,7 +11,7 @@ description: >-
 
 Framework-agnostic Prisma repository kit. Not a Prisma fork. Only repositories talk to Prisma.
 
-NestJS apps: also load skill `prismakit-nestjs` after this contract.
+**Line:** 4.0 (pre-stable). NestJS apps: also load skill `prismakit-nestjs` after this contract.
 
 ## Non-negotiables
 
@@ -29,10 +29,10 @@ Violations are bugs. Enforce with `@prismakit/eslint-plugin` + this skill.
 
 | Required | How |
 |----------|-----|
-| Reads/writes | `*Repository` from `createRepository` / Nest factories |
+| Reads/writes | `*Repository` from `createRepository` / Nest `createDefineRepo` |
 | Tx writes | `invalidate: 'none'` then `invalidateCache` after commit |
 | User-facing reads | `setCache: true` when the repo has cache config |
-| Relations in `select` | `model` + Prisma meta loaded (or `scalarFields` when meta unavailable) |
+| Relations in `select` | `model` + Prisma meta loaded (`loadPrismaMetaFromSchema` / `loadPrismaMetaFromDmmf` or Nest `schemaPath` / `dmmf`) |
 | ESLint | `prismakit.configs.recommended` |
 
 ## Layers
@@ -47,7 +47,7 @@ Helpers may inject repositories — never the Prisma client.
 
 | Task | Use |
 |------|-----|
-| New repository | `createRepository` (core) or Nest `defineRepo` — see `prismakit-nestjs` |
+| New repository | `createRepository` (core) or Nest `defineAppRepo` — see `prismakit-nestjs` |
 | User-facing get by id | `getThrowById` / `getById` + `setCache: true` |
 | Existence / uniqueness / auth | `getFirst` — **no** `setCache` |
 | List | `getMany` + `setCache: true` + optional `cacheTags` |
@@ -65,15 +65,18 @@ Helpers may inject repositories — never the Prisma client.
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
-import { createRepository } from '@prismakit/core';
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
 import { RedisCacheAdapter } from '@prismakit/redis';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+// Prisma 5/6: loadPrismaMetaFromDmmf(Prisma.dmmf)
 
 const DAY = 86_400;
 
 const UserRepoClass = createRepository({
   model: 'user',
   cache: { ttl: DAY, nullTtl: 60, sensitiveFields: ['password'] },
-  lock: true, // table + columns resolved from Prisma schema meta
+  lock: true, // table + columns from Prisma meta
 });
 
 const prisma = new PrismaClient();
@@ -81,19 +84,16 @@ const cache = new RedisCacheAdapter({ prefix: 'myapp' });
 export const users = new UserRepoClass({ prisma, cache });
 ```
 
-`defineRepository` is an alias of `createRepository` in core. Note: `createPrismaRepository` is also an alias in core, but in `@prismakit/nestjs` it aliases `createInjectableRepository` instead — avoid using it to prevent confusion.
+Public factory: **`createRepository` only** (no `defineRepository` / `createPrismaRepository` aliases).
 
-**NestJS apps:** use `createDefineRepo` / `defineAppRepo` with app-wide cache defaults instead — see skill `prismakit-nestjs`.
+**NestJS apps:** use `createDefineRepo` / `defineAppRepo` — see skill `prismakit-nestjs`.
 
 | Option | Description |
 |--------|-------------|
-| `model` | Prisma client key (`prisma.user` → `'user'`). Needed for cache + compose. |
-| `scalarFields` | Usually `Prisma.XScalarFieldEnum`. **Optional** when `schemaPath` / DMMF meta is loaded (default since 3.1). |
+| `model` | Prisma client key (`prisma.user` → `'user'`). **Required.** |
 | `cache` | `CacheOptions` or `true` (uses app defaults when bound via `createDefineRepo`). |
-| `lock` | `true` / client key / `@@map` table / `{ tableName, columns }`. |
-| `primaryKey` | Override only. Defaults to schema `@id` / `@@id` (composite `string[]`) or `id`. |
-| `schemaPath` | Path to `schema.prisma` when meta is not loaded globally. Default: `prisma/schema.prisma`. |
-| `getDelegate` | Optional. Defaults to `(c) => c[model]`. |
+| `lock` | `true` (from meta) or `{ tableName, columns? }`. |
+| `toPayload` | Optional payload mapper (default identity). |
 
 Put files under `**/repositories/**`. Keep Prisma client construction under `**/infrastructure/prisma/**`.
 
@@ -167,7 +167,7 @@ If Redis is down, `RedisCacheAdapter` **fails open** — queries still hit Prism
 | Auth, uniqueness, JWT lookup | omit / `false` |
 | Inside `tx` | ignored |
 
-Repository `cache` is the source of truth. Omit `cacheModels` (fail-open). An optional allowlist throws if a cached repo's model is missing from the list.
+Repository `cache` is the source of truth. There is no Nest `cacheModels` allowlist in 4.0.
 
 `setCache` / `cacheTags` / `invalidate` / `invalidateCache` exist on the type **only** when the repo has `cache` config. Do not force them on uncached repos.
 
@@ -200,9 +200,9 @@ await posts.getThrowById({
 });
 ```
 
-Requirements: source repo has `model`; `scalarFields` **or** Prisma meta loaded (`loadPrismaMetaFromDmmf(Prisma.dmmf)` on Prisma 5/6, `loadPrismaMetaFromSchema('prisma/schema.prisma')` on Prisma 7); related model repos are registered.
+Requirements: source repo has `model`; Prisma meta loaded; related model repos are registered.
 
-AutoComposer injects the target primary key into nested selects even if omitted. Relation field names resolve from schema / DMMF meta (`schemaPath` defaults to `prisma/schema.prisma`).
+AutoComposer injects the target primary key into nested selects even if omitted. Relation field names resolve from schema / DMMF meta.
 
 ## Row locks
 
@@ -244,9 +244,10 @@ Allowed Prisma usage: `**/repositories/**`, `**/infrastructure/prisma/**`. Rules
 
 ## Observability
 
-- Core: `setTelemetry({ enabled, onEvent, slowThreshold })` or Nest `telemetry` / `queryLog.slowThreshold`.
-- Optional: `@prismakit/opentelemetry` → `createPrismaKitTelemetry({ slowThreshold })`.
-- Events: `cache.hit` / `cache.miss` / `cache.bypass` / `cache.invalidate` / `cache.error`, `compose.*`, `lock.*`, `stampede.*`, `query.complete` / `query.slow`.
+- Core: `setTelemetry({ enabled, onEvent, slowThreshold })`
+- Nest: `telemetry: { enabled, slowThreshold, onSlowQuery, onEvent }`
+- Optional: `@prismakit/opentelemetry` → `createPrismaKitTelemetry({ slowThreshold })`
+- Events: `cache.hit` / `cache.miss` / `cache.bypass` / `cache.invalidate` / `cache.error`, `compose.*`, `lock.*`, `stampede.*`, `query.complete` / `query.slow`
 
 ## Clean code
 

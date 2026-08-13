@@ -539,6 +539,3 @@ export class AutoComposer {
     );
   }
 }
-
-/** @deprecated Prefer getComposeOptions / setComposeOptions */
-export { getComposeOptions };

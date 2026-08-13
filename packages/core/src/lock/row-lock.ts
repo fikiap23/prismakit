@@ -72,7 +72,7 @@ export function assertLockPrerequisites(
   }
   if (!lockConfig?.tableName) {
     throw new Error(
-      'Row lock is not enabled for this repository. Add lock config to createPrismaRepository options.',
+      'Row lock is not enabled for this repository. Add lock: true (or explicit lock config) to createRepository options.',
     );
   }
   const provider = getDatasourceProvider();

@@ -265,15 +265,11 @@ describe('row lock / raw SQL', () => {
     const deps = { prisma, cache: mem, registry, autoCompose };
     const UserRepo = createRepository({
       model: 'user',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', name: 'name', password: 'password' },
       cache: { ttl: 300 },
       lock: true,
     });
     const PostRepo = createRepository({
       model: 'post',
-      primaryKey: 'id',
-      scalarFields: { id: 'id', title: 'title', authorId: 'authorId' },
       cache: { ttl: 300 },
       lock: true,
     });

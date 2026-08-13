@@ -1,6 +1,6 @@
 # PrismaKit NestJS reference
 
-API surface for `@prismakit/nestjs` 3.x. Repository methods, cache, compose, and locks are documented in skill `prismakit` (`reference.md` in that skill). This file covers the Nest adapter only.
+API surface for `@prismakit/nestjs` **4.0** (pre-stable). Repository methods, cache, compose, and locks are documented in skill `prismakit` (`reference.md` in that skill). This file covers the Nest adapter only.
 
 ## `PrismaKitModuleOptions`
 
@@ -13,13 +13,11 @@ API surface for `@prismakit/nestjs` 3.x. Repository methods, cache, compose, and
 | `validateCompose` | no | When `true`, `assertSelectComposeValid` on module init. |
 | `strictCachedRepos` | no | Fail boot when a cached repo is missing from `providers`, or listed in two modules. Default `true`. |
 | `modulesRoot` | no | Directory scanned by `strictCachedRepos`. Default `src/modules`. |
-| `cacheModels` | no | Optional extra allowlist. Omit — repo `cache` is the source of truth. |
-| `compose` | no | `ComposeOptions`: `maxDepth` (default 10), `parallel` (default true), `setCache` (default true). `tx` is per-call only. |
-| `telemetry` | no | `{ enabled?: boolean; onEvent?: (event) => void }`. |
-| `queryLog` | no | `{ slowThreshold?: number; onSlowQuery?: (e) => void }`. Default threshold 500ms. Setting this enables telemetry. |
+| `compose` | no | `ComposeOptions`: `maxDepth` (default 10), `parallel` (default true), `setCache` (default true). |
+| `telemetry` | no | `{ enabled?, slowThreshold?, onSlowQuery?, onEvent? }`. |
 | `autoRegisterModels` | no | `true` = stub repos for all schema/DMMF models; `string[]` = those client keys only. |
 
-`queryLog.onSlowQuery` receives `{ model?, method?, durationMs, thresholdMs }` for `query.complete` events at/above the threshold.
+`onSlowQuery` receives `{ model?, method?, durationMs, thresholdMs }` for slow queries. Setting `slowThreshold` / `onSlowQuery` enables telemetry unless `enabled: false`.
 
 ## Async config
 
@@ -42,6 +40,10 @@ PrismaKitModule.forRootAsync({
       prefix: config.get('CACHE_PREFIX') ?? 'myapp',
     }),
     schemaPath: 'prisma/schema.prisma',
+    telemetry: {
+      enabled: true,
+      slowThreshold: 500,
+    },
   }),
 });
 ```
@@ -68,66 +70,24 @@ execTx<T, TClient = unknown>(
 
 `TransactionOptions`: `{ maxWait?: number; timeout?: number; isolationLevel?: 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable' | string }`.
 
-Type the client when useful:
-
-```typescript
-await this.tx.execTx<User, Prisma.TransactionClient>(async (tx) => { /* ... */ });
-```
-
 `afterCommit` runs only after `prisma.$transaction` resolves successfully.
 
 ## Repository factories
 
 | Factory | When |
 |---------|------|
-| `createDefineRepo<Prisma.TypeMap>()` then local `defineRepo({ model, ... })` | **Default** for apps. Zero phantoms; `model` + `scalarFields` + `cache` / `lock`. |
-| `defineInjectableRepository({ model, select, create, update, where, orderBy, payload, ... })` | TypeMap unavailable. Package aliases: `defineRepository`. |
-| `createInjectableRepository({ model, ... })` | Thin / untyped. Results `unknown` unless `toPayload` is supplied. Alias: `createPrismaRepository`. |
+| `createDefineRepo<Prisma.TypeMap>()` then app `defineAppRepo({ model, ... })` | **Default** for apps. Zero phantoms; `model` + `cache` / `lock` / `toPayload`. |
+| `createInjectableRepository({ model, ... })` | Low-level escape hatch. Results thinly typed unless `toPayload` is supplied. |
 
-`createDefineRepo` accepts app-wide defaults (`cache`, `schemaPath`) and per-repo options: `model`, `scalarFields?` (optional since 3.1), `primaryKey?`, `cache?` (`true` inherits app defaults), `lock?`, `schemaPath?`.
+`createDefineRepo` accepts app-wide defaults (`cache`) and per-repo options: `model`, `cache?` (`true` inherits app defaults), `lock?`, `toPayload?`.
 
 When `cache` is set, the returned API includes `setCache` / `cacheTags` / `invalidate` / `tags` / `invalidateCache`. Otherwise those fields are omitted from the type (`HasCacheFromOptions`).
 
-`createDefineRepo` / `RepositoryApiFromTypeMap` includes the full runtime surface: `create`, `createMany`, `createManyAndReturn`, `update`, `updateById`, `updateMany`, `updateManyAndReturn`, `upsert`, `upsertMany`, `delete`, `deleteById`, `deleteMany`, `getThrowFirst`, `count`, `exists`, `aggregate`, `groupBy`, `getManyCursor`, `queryRaw`, `executeRaw`, `lock` + `orderBy` on `getFirst`, `lock` on `getMany`, and composite-PK `id` on `*ById`. `primaryKey` is optional — composite `@@id` is read from schema meta.
-
-Export the instance type with interface merging so `cache` on options gates `setCache` (a same-name `type` alias collapses to `any`):
+Export the instance type with interface merging so `cache` on options gates `setCache`:
 
 ```typescript
 export interface UserRepository extends InstanceType<typeof UserRepository> {}
 ```
-
-## `defineInjectableRepository` shape (escape hatch)
-
-```typescript
-import { Prisma } from '@prisma/client';
-import { defineInjectableRepository } from '@prismakit/nestjs';
-
-type Of<S> = S extends Prisma.UserSelect
-  ? Prisma.UserGetPayload<{ select: S }>
-  : never;
-
-export const UserRepository = defineInjectableRepository({
-  model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum, // required for this escape hatch (meta not typed)
-  select: null! as Prisma.UserSelect,
-  create: null! as Prisma.UserCreateInput,
-  update: null! as Prisma.UserUpdateInput,
-  where: null! as Prisma.UserWhereInput,
-  orderBy: null! as Prisma.UserOrderByWithRelationInput,
-  payload: class {
-    declare readonly _select: unknown;
-    declare type: () => Of<this['_select']>;
-  },
-  cache: { ttl: 86_400, sensitiveFields: ['password'] },
-  lock: true,
-});
-```
-
-## Re-exports from core
-
-`@prismakit/nestjs` re-exports: `AutoComposer`, `RepositoryRegistry`, `CacheAdapter`, repository option/instance types, `RepoPayloadHKT`, `ComposeOptions`, `TelemetryOptions`, `TelemetryEvent`, `loadPrismaMetaFromDmmf`, `loadPrismaMetaFromSchema`, `setComposeOptions`, `setTelemetry`.
-
-Prefer importing Nest-only APIs from `@prismakit/nestjs` and core-only helpers from `@prismakit/core`.
 
 ## Layout
 

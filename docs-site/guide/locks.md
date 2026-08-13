@@ -5,13 +5,13 @@ Opt-in pessimistic locks via `SELECT … FOR UPDATE` for read-modify-write races
 ## Setup
 
 ```typescript
-createInjectableRepository({
+defineAppRepo({
   model: 'order',
-  lock: true, // or 'orders' / @@map table name
+  lock: true, // table + columns from Prisma meta
 });
 ```
 
-Prefer `lock: true` with `schemaPath` / DMMF so column maps cannot drift.
+Prefer `lock: true` with `schemaPath` / DMMF so column maps cannot drift. Explicit override: `{ tableName, columns? }`.
 
 ## Usage
 

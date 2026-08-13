@@ -1,6 +1,6 @@
 # Getting started
 
-PrismaKit wraps your existing Prisma client with a repository factory. Node 20+ and a generated Prisma client are required.
+PrismaKit wraps your existing Prisma client with a repository factory. Node 20+ and a generated Prisma client are required. **4.0 is pre-stable.**
 
 ## Install
 
@@ -22,15 +22,33 @@ pnpm add @prismakit/memory   # or @prismakit/redis
 
 ## Create a repository
 
-```typescript
-import { createInjectableRepository } from '@prismakit/nestjs';
-// plain Node: import { createRepository } from '@prismakit/core';
+**Nest (default)**
 
-export const UserRepository = createInjectableRepository({
+```typescript
+import { createDefineRepo } from '@prismakit/nestjs';
+import type { Prisma } from '@prisma/client';
+
+export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
+  cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
+});
+
+export class UserRepository extends defineAppRepo({
   model: 'user',
-  scalarFields: Prisma.UserScalarFieldEnum,
+  cache: { sensitiveFields: ['password'] },
+  lock: true,
+}) {}
+```
+
+**Plain Node**
+
+```typescript
+import { createRepository, loadPrismaMetaFromSchema } from '@prismakit/core';
+
+loadPrismaMetaFromSchema('prisma/schema.prisma');
+const UserRepository = createRepository({
+  model: 'user',
   cache: { ttl: 86400 },
-  lock: 'users',
+  lock: true,
 });
 ```
 
@@ -40,7 +58,8 @@ export const UserRepository = createInjectableRepository({
 PrismaKitModule.forRoot({
   prisma,
   cache: new RedisCacheAdapter({ prefix: 'myapp' }),
-  cacheModels: ['user'],
+  schemaPath: 'prisma/schema.prisma',
+  telemetry: { enabled: true, slowThreshold: 500 },
 });
 ```
 
@@ -50,6 +69,7 @@ Register the repository in feature `providers`. Services call the repository —
 
 | Topic | This site | Full text |
 |-------|-----------|-----------|
+| Upgrade to 4.0 | — | [docs/guide/migration-to-4.md](https://github.com/fikiap23/prismakit/blob/master/docs/guide/migration-to-4.md) |
 | Production | [Production](./production) | [docs/guide/production.md](https://github.com/fikiap23/prismakit/blob/master/docs/guide/production.md) |
 | Nest starter | — | [starter-prismakit-nestjs](https://github.com/fikiap23/starter-prismakit-nestjs) |
 | Repository API | [Repository](./repository) | [docs/guide/repository.md](https://github.com/fikiap23/prismakit/blob/master/docs/guide/repository.md) |
