@@ -42,10 +42,10 @@
     "@prisma/client": "^6.5.0",
     "@types/pg": "^8.21.0",
     "pg": "^8.23.0",
-    "prisma": "^6.5.0",
+    "prisma": "^7.9.1",
     "tsup": "^8.4.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.0.8"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public"
