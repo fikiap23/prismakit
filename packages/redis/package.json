@@ -34,7 +34,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=4.0.0",
+    "@prismakit/core": ">=4.0.0 <5",
     "ioredis": ">=5.0.0"
   },
   "devDependencies": {
