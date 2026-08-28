@@ -171,6 +171,18 @@ Keys include a version segment (`v2`) so codec changes invalidate legacy entries
 
 The Redis adapter serializes `Date`, `BigInt`, `Bytes`, and Prisma `Decimal` via tagged JSON (`__date`, `__bigint`, etc.).
 
+`JSON.stringify` runs `Date#toJSON` / `Decimal#toJSON` before the replacer, so AutoComposer’s pre-compose clone used to turn `DateTime` into ISO strings (`placedAt.getTime is not a function`). Clone and Redis now look at the original holder value. Pass `decimalFactory` so Decimal comes back as `Prisma.Decimal`, not a string:
+
+```typescript
+new RedisCacheAdapter({
+  url: process.env.REDIS_URL,
+  prefix: 'myapp',
+  decimalFactory: (s) => new Prisma.Decimal(s),
+});
+```
+
+Or on Nest: `PrismaKitModule.forRoot({ decimalFactory: (s) => new Prisma.Decimal(s), ... })`.
+
 ## Debug
 
 ```bash

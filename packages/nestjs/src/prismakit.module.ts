@@ -19,9 +19,11 @@ import {
   loadPrismaMetaFromDmmf,
   loadPrismaMetaFromSchema,
   setComposeOptions,
+  setTaggedJsonOptions,
   setTelemetry,
   type CacheAdapter,
   type ComposeOptions,
+  type DecimalFactory,
   type PrismaClientLike,
   type PrismaDmmfLike,
   type TelemetryEvent,
@@ -82,6 +84,12 @@ export type PrismaKitModuleOptions = {
   compose?: ComposeOptions;
   /** Telemetry / slow-query hooks. */
   telemetry?: NestTelemetryOptions;
+  /**
+   * Reconstruct Prisma `Decimal` after Redis / compose JSON clone.
+   * Without this, Decimal fields come back as strings.
+   * @example decimalFactory: (s) => new Prisma.Decimal(s)
+   */
+  decimalFactory?: DecimalFactory;
   /**
    * Auto-register read-only stub repositories for models that lack an explicit
    * Nest provider — eliminates compose-only stub repos.
@@ -172,6 +180,9 @@ function applyModuleOptions(options: PrismaKitModuleOptions): void {
   }
   if (options.compose) {
     setComposeOptions(options.compose);
+  }
+  if (options.decimalFactory) {
+    setTaggedJsonOptions({ decimalFactory: options.decimalFactory });
   }
   wireTelemetry(options);
 }

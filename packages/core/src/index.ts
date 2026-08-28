@@ -46,6 +46,19 @@ export type {
   PascalToCamel,
 } from './types/prisma-typemap.type';
 
+// Tagged JSON codec (Date / Decimal / Bytes / BigInt)
+export {
+  cloneWithCodec,
+  createTaggedJsonReviver,
+  getTaggedJsonOptions,
+  setTaggedJsonOptions,
+  taggedJsonParse,
+  taggedJsonReplacer,
+  taggedJsonStringify,
+  type DecimalFactory,
+  type TaggedJsonOptions,
+} from './codec/tagged-json';
+
 // Cache
 export type { CacheAdapter } from './cache/cache-adapter.interface';
 export type {

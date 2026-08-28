@@ -1,4 +1,5 @@
 import { splitSelect } from './utils/split-select';
+import { cloneWithCodec } from './codec/tagged-json';
 import { RepositoryRegistry } from './repository-registry';
 import { resolveRelationModel } from './compose/relation-resolver';
 import { getModelMeta } from './schema/prisma-meta';
@@ -58,14 +59,7 @@ function isPresent(value: unknown): boolean {
 
 /** Clone so parents never share the same relation object graph. */
 function cloneAttachedRow<T extends Record<string, any>>(row: T): T {
-  if (typeof structuredClone === 'function') {
-    try {
-      return structuredClone(row);
-    } catch {
-      /* fall through */
-    }
-  }
-  return { ...row };
+  return cloneWithCodec(row);
 }
 
 function uniqueTuplesFrom(

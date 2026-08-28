@@ -30,7 +30,10 @@ import { RedisCacheAdapter } from '@prismakit/redis';
   imports: [
     PrismaKitModule.forRoot({
       prisma: prismaClient,
-      cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+      cache: new RedisCacheAdapter({
+        prefix: 'myapp',
+        decimalFactory: (s) => new Prisma.Decimal(s),
+      }),
       schemaPath: 'prisma/schema.prisma', // default; Prisma 5/6: dmmf: Prisma.dmmf
       validateCompose: true,
       compose: { maxDepth: 6, parallel: true, setCache: true },

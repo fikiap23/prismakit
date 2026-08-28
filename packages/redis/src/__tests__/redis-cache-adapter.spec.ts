@@ -69,6 +69,26 @@ describe('RedisCacheAdapter', () => {
     expect(parsed.blob.toString()).toBe('hello');
   });
 
+  it('round-trips Decimal despite Decimal#toJSON', async () => {
+    class Decimal {
+      constructor(private readonly value: string) {}
+      toFixed() {
+        return this.value;
+      }
+      toJSON() {
+        return this.value;
+      }
+    }
+    const { redisJsonParse, redisJsonStringify } = await import('../redis-json');
+    const raw = redisJsonStringify({ amount: new Decimal('8.20') });
+    expect(raw).toContain('__decimal');
+    const parsed = redisJsonParse<{ amount: Decimal }>(raw, {
+      decimalFactory: (s) => new Decimal(s),
+    });
+    expect(parsed.amount).toBeInstanceOf(Decimal);
+    expect(parsed.amount.toFixed()).toBe('8.20');
+  });
+
   it('set/get uses BigInt-safe JSON', async () => {
     const { RedisCacheAdapter } = await import('../redis-cache-adapter');
     let stored: string | undefined;

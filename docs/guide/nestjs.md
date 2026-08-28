@@ -6,6 +6,7 @@ Package: [`@prismakit/nestjs`](https://www.npmjs.com/package/@prismakit/nestjs)
 
 ```typescript
 import { Module } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaKitModule } from '@prismakit/nestjs';
 import { RedisCacheAdapter } from '@prismakit/redis';
 
@@ -13,7 +14,10 @@ import { RedisCacheAdapter } from '@prismakit/redis';
   imports: [
     PrismaKitModule.forRoot({
       prisma: prismaClient,
-      cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+      cache: new RedisCacheAdapter({
+        prefix: 'myapp',
+        decimalFactory: (s) => new Prisma.Decimal(s),
+      }),
       schemaPath: 'prisma/schema.prisma',
       telemetry: {
         enabled: true,
@@ -38,6 +42,7 @@ export class AppModule {}
 | `strictCachedRepos` | no | Fail boot when a `cache` repo is missing from `providers`, or listed in two modules (default `true`) |
 | `modulesRoot` | no | Directory scanned by `strictCachedRepos` (default `src/modules`) |
 | `compose` | no | `{ maxDepth, parallel, setCache }` |
+| `decimalFactory` | no | `(s) => new Prisma.Decimal(s)` — revive Decimal after Redis / compose clone |
 | `telemetry` | no | `{ enabled, slowThreshold, onSlowQuery, onEvent }` |
 | `autoRegisterModels` | no | Stub repos for compose-only models |
 
@@ -52,6 +57,7 @@ PrismaKitModule.forRootAsync({
     cache: new RedisCacheAdapter({
       url: config.get('REDIS_URL'),
       prefix: config.get('CACHE_PREFIX') ?? 'myapp',
+      decimalFactory: (s) => new Prisma.Decimal(s),
     }),
     schemaPath: 'prisma/schema.prisma',
   }),

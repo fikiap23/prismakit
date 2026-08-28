@@ -143,7 +143,7 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 {prefix}:v2:repo:{model}:t:{tag}:__idx
 ```
 
-Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal`. Custom revive: `createRedisJsonReviver` from `@prismakit/redis`.
+Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal`. Pass `decimalFactory: (s) => new Prisma.Decimal(s)` on `RedisCacheAdapter` (and/or Nest `PrismaKitModule.forRoot`) so compose clone and cache hits return native Prisma scalars — `JSON.stringify` otherwise turns `Date`/`Decimal` into strings via `toJSON`.
 
 ### Debug
 
@@ -175,6 +175,7 @@ new RedisCacheAdapter({
   prefix: 'myapp',            // default 'prismakit'
   compression: 'gzip',        // 'none' | 'gzip'
   compressionThresholdBytes: 1024,
+  decimalFactory: (s) => new Prisma.Decimal(s),
 });
 ```
 

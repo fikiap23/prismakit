@@ -20,7 +20,7 @@ pnpm add -D @prismakit/eslint-plugin
 import { Module } from '@nestjs/common';
 import { PrismaKitModule, createDefineRepo } from '@prismakit/nestjs';
 import { RedisCacheAdapter } from '@prismakit/redis';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
   cache: { ttl: 86400, nullTtl: 60, defaultSetCache: true },
@@ -30,7 +30,10 @@ export const defineAppRepo = createDefineRepo<Prisma.TypeMap>({
   imports: [
     PrismaKitModule.forRoot({
       prisma: prismaClient,
-      cache: new RedisCacheAdapter({ prefix: 'myapp' }),
+      cache: new RedisCacheAdapter({
+        prefix: 'myapp',
+        decimalFactory: (s) => new Prisma.Decimal(s),
+      }),
       schemaPath: 'prisma/schema.prisma',
       telemetry: {
         enabled: true,

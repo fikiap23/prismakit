@@ -1,6 +1,9 @@
 import Redis from 'ioredis';
 import { gzipSync, gunzipSync } from 'zlib';
-import type { CacheAdapter } from '@prismakit/core';
+import {
+  setTaggedJsonOptions,
+  type CacheAdapter,
+} from '@prismakit/core';
 import {
   redisJsonParse,
   redisJsonStringify,
@@ -73,6 +76,9 @@ export class RedisCacheAdapter implements CacheAdapter {
     this.compression = compression;
     this.compressionThreshold = compressionThresholdBytes;
     this.jsonOptions = { decimalFactory };
+    if (decimalFactory) {
+      setTaggedJsonOptions({ decimalFactory });
+    }
     this.onError = onError;
     this.client = url
       ? new Redis(url, { lazyConnect: true })

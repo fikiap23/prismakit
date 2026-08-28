@@ -7,6 +7,7 @@ import {
   type PrismaDmmfLike,
 } from '../../schema/prisma-meta';
 import { setComposeOptions } from '../../compose/compose-options';
+import { setTaggedJsonOptions } from '../../codec/tagged-json';
 import { createFakePrisma, type FakePrismaClient } from './fake-prisma';
 import { TestMemoryCache } from './test-memory-cache';
 import { messyDmmf, simpleDmmf } from './messy-dmmf';
@@ -26,6 +27,7 @@ export type RepoBundle = {
 export function resetGlobals(): void {
   clearPrismaMeta();
   setComposeOptions(undefined);
+  setTaggedJsonOptions(undefined);
 }
 
 export function setupMessyWorld(seed?: {

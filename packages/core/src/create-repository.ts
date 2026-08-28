@@ -45,6 +45,7 @@ import {
 } from './lock/build-lock-config';
 import { paginator, type PaginateFunction } from './pagination/paginator';
 import { splitSelect } from './utils/split-select';
+import { cloneWithCodec } from './codec/tagged-json';
 import { AutoComposer, ensureSelectPrimaryKey } from './auto-composer';
 import { RepositoryRegistry } from './repository-registry';
 import { ensurePrismaMeta, getModelMeta, getPrismaMeta } from './schema/prisma-meta';
@@ -213,40 +214,12 @@ function extractEntityIdFromRow(
 }
 
 /**
- * Deep-ish clone before AutoComposer mutates rows in place.
- * Protects cache adapters that return stored objects by reference.
- * Uses tagged JSON for Date/BigInt/Buffer preservation.
+ * Deep clone before AutoComposer mutates rows in place.
+ * Must keep Prisma Date / Decimal / Bytes — `JSON.stringify` + Date#toJSON
+ * otherwise turns DateTime into a string (`placedAt.getTime is not a function`).
  */
 function cloneForCompose<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  if (typeof structuredClone === 'function') {
-    try {
-      return structuredClone(value);
-    } catch {
-      /* fall through */
-    }
-  }
-  const replacer = (_k: string, v: unknown) => {
-    if (typeof v === 'bigint') return { __bigint: v.toString() };
-    if (v instanceof Date) return { __date: v.toISOString() };
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(v))
-      return { __bytes: v.toString('base64') };
-    return v;
-  };
-  const reviver = (_k: string, v: unknown) => {
-    if (v && typeof v === 'object' && !Array.isArray(v)) {
-      const o = v as Record<string, unknown>;
-      const keys = Object.keys(o);
-      if (keys.length === 1 && '__bigint' in o && typeof o.__bigint === 'string')
-        return BigInt(o.__bigint);
-      if (keys.length === 1 && '__date' in o && typeof o.__date === 'string')
-        return new Date(o.__date);
-      if (keys.length === 1 && '__bytes' in o && typeof o.__bytes === 'string')
-        return Buffer.from(o.__bytes as string, 'base64');
-    }
-    return v;
-  };
-  return JSON.parse(JSON.stringify(value, replacer), reviver) as T;
+  return cloneWithCodec(value);
 }
 
 function resolveGetDelegate(
