@@ -38,10 +38,10 @@
     "ioredis": ">=5.0.0"
   },
   "devDependencies": {
-    "ioredis": "^5.6.0",
-    "typescript": "^5.9.2",
+    "ioredis": "^6.0.0",
+    "typescript": "^7.0.2",
     "tsup": "^8.4.0",
-    "vitest": "^3.0.8"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public"
