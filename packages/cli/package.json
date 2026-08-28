@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/cli",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "CLI for PrismaKit — generate modules, validate compose, install agent skills",
   "license": "Apache-2.0",
   "engines": {
@@ -39,7 +39,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=4.0.0 <5"
+    "@prismakit/core": ">=4.0.1"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/example-smoke-test",
   "private": true,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Real Prisma + PrismaKit smoke test (SQLite, no Docker)",
   "license": "Apache-2.0",
   "type": "module",

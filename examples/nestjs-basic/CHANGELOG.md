@@ -1,5 +1,13 @@
 # @prismakit/example-nestjs-basic
 
+## 0.0.13
+
+### Patch Changes
+
+- Updated dependencies [180bb29]
+  - @prismakit/core@4.0.1
+  - @prismakit/nestjs@4.0.1
+
 ## 0.0.12
 
 ### Patch Changes

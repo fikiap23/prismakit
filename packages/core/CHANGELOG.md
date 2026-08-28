@@ -1,5 +1,11 @@
 # @prismakit/core
 
+## 4.0.1
+
+### Patch Changes
+
+- 180bb29: Keep Prisma `Date` and `Decimal` through AutoComposer clone and Redis JSON (JSON.stringify toJSON no longer turns them into strings).
+
 ## 4.0.0
 
 ### Major Changes

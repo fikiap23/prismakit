@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/core",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Prisma repository factory with cache-aside, auto-compose, and row locks",
   "license": "Apache-2.0",
   "engines": {

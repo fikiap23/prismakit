@@ -1,5 +1,12 @@
 # @prismakit/cli
 
+## 4.0.1
+
+### Patch Changes
+
+- Updated dependencies [180bb29]
+  - @prismakit/core@4.0.1
+
 ## 4.0.0
 
 ### Major Changes
