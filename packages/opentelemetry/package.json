@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "@opentelemetry/api": ">=1.9.0",
-    "@prismakit/core": ">=4.0.1"
+    "@prismakit/core": ">=4.0.1 <5"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.0",

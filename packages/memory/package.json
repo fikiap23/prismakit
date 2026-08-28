@@ -34,7 +34,7 @@
     "@prismakit/core": "workspace:*"
   },
   "peerDependencies": {
-    "@prismakit/core": ">=4.0.1"
+    "@prismakit/core": ">=4.0.1 <5"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
