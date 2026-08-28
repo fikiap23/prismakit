@@ -37,9 +37,9 @@
     "@prismakit/core": ">=4.0.1 <5"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
+    "typescript": "^7.0.2",
     "tsup": "^8.4.0",
-    "vitest": "^3.0.8"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public"
