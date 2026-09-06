@@ -262,4 +262,111 @@ describe('cache invalidation & key correctness', () => {
     });
     expect(q1).toBe(q2);
   });
+
+  it('write gate skips cache SET after invalidate (stale in-flight GET race)', async () => {
+    resetGlobals();
+    loadPrismaMetaFromDmmf(simpleDmmf);
+    const prisma = createFakePrisma({
+      models: {
+        user: { rows: [{ id: 'u1', name: 'Ada', password: 'x' }] },
+        post: { rows: [] },
+        postTag: { rows: [], primaryKey: ['postId', 'tagId'] },
+      },
+    });
+    const registry = new RepositoryRegistry();
+    const autoCompose = new AutoComposer(registry);
+    const cache = new TestMemoryCache('gate');
+    const deps = { prisma, registry, autoCompose, cache };
+    const UserRepo = createRepository({
+      model: 'user',
+      cache: {
+        ttl: 300,
+        defaultSetCache: false,
+        sensitiveFields: ['password'],
+        writeGateTtlSeconds: 30,
+      },
+    });
+    const users = new UserRepo(deps);
+
+    await users.getById({
+      id: 'u1',
+      select: { id: true, name: true },
+      setCache: true,
+    });
+    expect(cache.keys().some((k) => k.includes(':e:u1:'))).toBe(true);
+
+    await users.invalidateCache({ id: 'u1' });
+    expect(
+      cache.keys().some((k) => k.endsWith(':user:__write_gate')),
+    ).toBe(true);
+    expect(cache.keys().filter((k) => k.includes(':e:u1:') && !k.includes('__idx'))).toEqual(
+      [],
+    );
+
+    // Simulate DB already updated while an old reader would try to SET stale Ada.
+    const rows = prisma.__getRows('user');
+    prisma.__setRows(
+      'user',
+      rows.map((r) => (r.id === 'u1' ? { ...r, name: 'Ada2' } : r)),
+    );
+
+    const fresh = await users.getById({
+      id: 'u1',
+      select: { id: true, name: true },
+      setCache: true,
+    });
+    expect(fresh?.name).toBe('Ada2');
+    // Gate blocks SET — entity payload must not be cached yet.
+    expect(
+      cache
+        .keys()
+        .filter(
+          (k) =>
+            k.includes(':e:u1:') &&
+            !k.includes('__idx') &&
+            !k.includes('__write_gate'),
+        ),
+    ).toEqual([]);
+  });
+
+  it('writeGateTtlSeconds: false disables the gate', async () => {
+    resetGlobals();
+    loadPrismaMetaFromDmmf(simpleDmmf);
+    const prisma = createFakePrisma({
+      models: {
+        user: { rows: [{ id: 'u1', name: 'Ada', password: 'x' }] },
+        post: { rows: [] },
+        postTag: { rows: [], primaryKey: ['postId', 'tagId'] },
+      },
+    });
+    const registry = new RepositoryRegistry();
+    const autoCompose = new AutoComposer(registry);
+    const cache = new TestMemoryCache('nogate');
+    const deps = { prisma, registry, autoCompose, cache };
+    const UserRepo = createRepository({
+      model: 'user',
+      cache: {
+        ttl: 300,
+        defaultSetCache: false,
+        sensitiveFields: ['password'],
+        writeGateTtlSeconds: false,
+      },
+    });
+    const users = new UserRepo(deps);
+
+    await users.getById({
+      id: 'u1',
+      select: { id: true, name: true },
+      setCache: true,
+    });
+    await users.invalidateCache({ id: 'u1' });
+    expect(cache.keys().some((k) => k.includes('__write_gate'))).toBe(false);
+
+    await users.getById({
+      id: 'u1',
+      select: { id: true, name: true },
+      setCache: true,
+    });
+    expect(cache.keys().some((k) => k.includes(':e:u1:'))).toBe(true);
+  });
 });

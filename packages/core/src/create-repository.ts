@@ -6,6 +6,7 @@ import {
   entityAllIndexKey,
   queryIndexKey,
   tagIndexKey,
+  writeGateKey,
 } from './cache/cache-key.util';
 import { selectIncludesSensitiveField } from './cache/cache-guard.util';
 import { applyJitter } from './cache/ttl-jitter.util';
@@ -65,6 +66,16 @@ function isNullSentinel(v: unknown): boolean {
   );
 }
 const DEFAULT_CACHE_TTL = 86400;
+const DEFAULT_WRITE_GATE_TTL_SECONDS = 5;
+
+function resolveWriteGateTtlSeconds(
+  opts: CacheOptions | undefined,
+): number | null {
+  const value = opts?.writeGateTtlSeconds;
+  if (value === false || value === 0) return null;
+  if (typeof value === 'number' && value > 0) return value;
+  return DEFAULT_WRITE_GATE_TTL_SECONDS;
+}
 
 /**
  * Default `toPayload` when callers omit it (identity cast).
@@ -345,6 +356,7 @@ function createRepositoryImpl<
   const methodConfig = cacheOpts?.methods ?? {};
   const defaultSetCache = cacheOpts?.defaultSetCache === true;
   const stampedeOpts = resolveStampedeOptions(cacheOpts?.stampede);
+  const writeGateTtlSeconds = resolveWriteGateTtlSeconds(cacheOpts);
 
   if (lockConfig) {
     validateLockConfig(lockConfig);
@@ -511,6 +523,16 @@ function createRepositoryImpl<
       method,
       select,
     });
+    if (await isWriteGated(cache)) {
+      emitTelemetry({
+        type: 'cache.write_gated',
+        model: modelName,
+        method,
+        detail: `entity:${idKey}`,
+      });
+      await releaseLock(cache, key);
+      return;
+    }
     const isNull = result === null || result === undefined;
     const ttl = applyJitter(isNull ? defaultNullTtl : getMethodTtl(method));
     const idxKey = entityIndexKey(prefix, modelName, idKey);
@@ -588,6 +610,16 @@ function createRepositoryImpl<
   ): Promise<void> {
     const prefix = getPrefix(cache);
     const key = buildQueryKey({ prefix, model: modelName, method, params });
+    if (await isWriteGated(cache)) {
+      emitTelemetry({
+        type: 'cache.write_gated',
+        model: modelName,
+        method,
+        detail: 'query',
+      });
+      await releaseLock(cache, key);
+      return;
+    }
     const isNull = result === null || result === undefined;
     const ttl = applyJitter(isNull ? defaultNullTtl : getMethodTtl(method));
 
@@ -612,6 +644,23 @@ function createRepositoryImpl<
     await releaseLock(cache, key);
   }
 
+  async function armWriteGate(cache: CacheAdapter): Promise<void> {
+    if (writeGateTtlSeconds == null) return;
+    await cache.safeSet(
+      writeGateKey(getPrefix(cache), modelName),
+      '1',
+      writeGateTtlSeconds,
+    );
+  }
+
+  async function isWriteGated(cache: CacheAdapter): Promise<boolean> {
+    if (writeGateTtlSeconds == null) return false;
+    const gated = await cache.safeGet(
+      writeGateKey(getPrefix(cache), modelName),
+    );
+    return gated != null;
+  }
+
   async function doInvalidateEntity(
     cache: CacheAdapter,
     id: string,
@@ -623,6 +672,7 @@ function createRepositoryImpl<
       await cache.safeInvalidateByIndex(idxKey);
     }
     await cache.safeDel(`__setmeta:${idxKey}`);
+    await armWriteGate(cache);
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -637,6 +687,7 @@ function createRepositoryImpl<
     } else {
       await cache.safeInvalidateByIndex(idxKey);
     }
+    await armWriteGate(cache);
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -660,6 +711,7 @@ function createRepositoryImpl<
         await invalidateFn(idxKey);
       }),
     );
+    await armWriteGate(cache);
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -674,6 +726,7 @@ function createRepositoryImpl<
       entityIdxKeys.map((idxKey) => cache.safeInvalidateByIndex(idxKey)),
     );
     await cache.safeDel(allIdx, `__setmeta:${allIdx}`);
+    await armWriteGate(cache);
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,

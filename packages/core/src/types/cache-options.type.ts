@@ -30,6 +30,11 @@ export interface CacheOptions {
    * Prefer for write-heavy paths where stale reads are unacceptable.
    */
   strictInvalidation?: boolean;
+  /**
+   * Seconds to block cache SET after invalidate (stale in-flight GET race).
+   * Default `5`. Set `false` or `0` to disable.
+   */
+  writeGateTtlSeconds?: number | false;
 }
 
 export type InvalidateMode = 'all' | 'entity' | 'queries' | 'none';

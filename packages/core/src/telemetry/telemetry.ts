@@ -9,6 +9,7 @@ export type CacheTelemetryEvent = {
     | 'cache.miss'
     | 'cache.bypass'
     | 'cache.invalidate'
+    | 'cache.write_gated'
     | 'cache.error';
   model?: string;
   method?: string;

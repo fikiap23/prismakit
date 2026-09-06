@@ -51,3 +51,11 @@ export function tagIndexKey(
 ): string {
   return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:t:${tag}:__idx`;
 }
+
+/**
+ * Per-model short TTL key armed after invalidate. While present, repository
+ * cache SETs are skipped so in-flight reads cannot repopulate stale rows.
+ */
+export function writeGateKey(prefix: string, model: string): string {
+  return `${prefix}:${CACHE_KEY_VERSION}:repo:${model}:__write_gate`;
+}

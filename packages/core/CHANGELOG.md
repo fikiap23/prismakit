@@ -1,5 +1,11 @@
 # @prismakit/core
 
+## 4.0.2
+
+### Patch Changes
+
+- Cache write gate: after invalidate, skip repository cache SET for a short TTL (default 5s via `CacheOptions.writeGateTtlSeconds`) so in-flight GETs cannot repopulate stale rows. Telemetry event `cache.write_gated`. Disable with `writeGateTtlSeconds: false`.
+
 ## 4.0.1
 
 ### Patch Changes

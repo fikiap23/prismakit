@@ -1,7 +1,7 @@
 {
   "name": "@prismakit/benchmark",
   "private": true,
-  "version": "2.2.7",
+  "version": "2.2.8",
   "description": "Synthetic micro-benchmarks for @prismakit/core (no database required)",
   "license": "Apache-2.0",
   "type": "module",

@@ -122,6 +122,7 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 | `defaultSetCache` | `false` | Reads cache unless caller passes `setCache: false`. |
 | `stampede` | see below | Per-repo stampede overrides. |
 | `strictInvalidation` | `false` | When true, invalidation failures rethrow. |
+| `writeGateTtlSeconds` | `5` | Block cache SET after invalidate (stale in-flight GET race). `false` / `0` disables. |
 
 ### `InvalidateMode`
 
