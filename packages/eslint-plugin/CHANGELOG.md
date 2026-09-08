@@ -1,5 +1,11 @@
 # @prismakit/eslint-plugin
 
+## 4.0.3
+
+### Patch Changes
+
+- Fix `getFirst` / `getThrowFirst` ignoring `orderBy` on the non-lock path (and include `orderBy` in the query cache key).
+
 ## 4.0.0
 
 ### Major Changes

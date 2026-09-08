@@ -1,5 +1,13 @@
 # @prismakit/example-fastify
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @prismakit/core@4.0.3
+  - @prismakit/memory@4.0.3
+
 ## 0.0.8
 
 ### Patch Changes

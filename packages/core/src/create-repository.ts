@@ -1255,7 +1255,10 @@ function createRepositoryImpl<
           return toPayload<T>(rows[0] ?? null) as Payload<T>;
         }
 
-        const params = { where, select: dbSelect } as Record<string, unknown>;
+        const params = { where, select: dbSelect, orderBy } as Record<
+          string,
+          unknown
+        >;
         const useCache =
           shouldCache('getFirst', setCache, tx, dbSelect) &&
           canUseCache(this.deps.cache);
@@ -1289,6 +1292,7 @@ function createRepositoryImpl<
             getModel(this.deps.prisma, tx).findFirst({
               where,
               select: dbSelect,
+              orderBy,
             }),
           );
           if (useCache) {
@@ -1762,7 +1766,10 @@ function createRepositoryImpl<
             return toPayload<T>(rows[0]) as Payload<T>;
           }
 
-          const params = { where, select: dbSelect } as Record<string, unknown>;
+          const params = { where, select: dbSelect, orderBy } as Record<
+            string,
+            unknown
+          >;
           const useCache =
             shouldCache('getThrowFirst', setCache, tx, dbSelect) &&
             canUseCache(this.deps.cache);
@@ -1803,6 +1810,7 @@ function createRepositoryImpl<
                 getModel(this.deps.prisma, tx).findFirst({
                   where,
                   select: dbSelect,
+                  orderBy,
                 }),
               );
               if (row === null) {

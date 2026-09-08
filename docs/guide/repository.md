@@ -85,6 +85,14 @@ await repo.getFirst({
   select: { id: true },
   // Do NOT setCache on auth / uniqueness checks
 });
+
+// Latest row by a column — orderBy is forwarded to Prisma findFirst
+await repo.getFirst({
+  where: { orderItemId },
+  select: { id: true, versionNo: true },
+  orderBy: { versionNo: 'desc' },
+  setCache: false,
+});
 ```
 
 ### `getMany`

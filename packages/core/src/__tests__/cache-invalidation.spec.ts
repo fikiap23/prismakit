@@ -369,4 +369,36 @@ describe('cache invalidation & key correctness', () => {
     });
     expect(cache.keys().some((k) => k.includes(':e:u1:'))).toBe(true);
   });
+
+  it('getFirst honors orderBy and keeps separate cache entries per sort', async () => {
+    const { repos, cache } = setupSimpleWorld({
+      models: {
+        user: {
+          rows: [
+            { id: 'u1', name: 'Ada', password: 'x' },
+            { id: 'u2', name: 'Bob', password: 'y' },
+          ],
+        },
+      },
+    });
+
+    const desc = await repos.user.getFirst({
+      where: {},
+      select: { id: true, name: true },
+      orderBy: { name: 'desc' },
+      setCache: true,
+    });
+    const asc = await repos.user.getFirst({
+      where: {},
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      setCache: true,
+    });
+
+    expect(desc?.name).toBe('Bob');
+    expect(asc?.name).toBe('Ada');
+
+    const queryKeys = cache.keys().filter((k) => k.includes(':q:'));
+    expect(queryKeys.length).toBeGreaterThanOrEqual(2);
+  });
 });

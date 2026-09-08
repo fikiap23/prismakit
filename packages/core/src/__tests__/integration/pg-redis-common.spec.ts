@@ -95,6 +95,20 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         'p2',
       ]);
 
+      const latestPost = await kit.repos.post.getFirst({
+        where: { writerRef: 'u1' },
+        select: { postId: true },
+        orderBy: { postId: 'desc' },
+      });
+      expect(latestPost?.postId).toBe('p2');
+
+      const earliestPost = await kit.repos.post.getFirst({
+        where: { writerRef: 'u1' },
+        select: { postId: true },
+        orderBy: { postId: 'asc' },
+      });
+      expect(earliestPost?.postId).toBe('p1');
+
       const page = await kit.repos.post.getManyPaginate({
         where: {},
         select: { postId: true },

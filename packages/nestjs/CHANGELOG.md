@@ -1,5 +1,14 @@
 # @prismakit/nestjs
 
+## 4.0.3
+
+### Patch Changes
+
+- Fix `getFirst` / `getThrowFirst` ignoring `orderBy` on the non-lock path (and include `orderBy` in the query cache key).
+- Updated dependencies
+  - @prismakit/core@4.0.3
+  - @prismakit/redis@4.0.3
+
 ## 4.0.2
 
 ### Patch Changes

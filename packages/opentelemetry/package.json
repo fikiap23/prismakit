@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/opentelemetry",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "OpenTelemetry adapter for @prismakit/core telemetry events",
   "license": "Apache-2.0",
   "engines": {
@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "@opentelemetry/api": ">=1.9.0",
-    "@prismakit/core": ">=4.0.2 <5"
+    "@prismakit/core": ">=4.0.3"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.0",

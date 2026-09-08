@@ -210,4 +210,32 @@ model ProductTag {
     clearPrismaMeta();
     fs.rmSync(dir, { recursive: true, force: true });
   });
+
+  it('passes orderBy to findFirst on getFirst and getThrowFirst', async () => {
+    clearPrismaMeta();
+    const calls: Array<Record<string, unknown>> = [];
+    const findFirst = async (args: Record<string, unknown>) => {
+      calls.push(args);
+      return { id: '2', versionNo: 2 };
+    };
+    const Repo = createRepository({ model: 'user' });
+    const repo = new Repo({
+      prisma: { user: { findFirst } },
+    });
+
+    await repo.getFirst({
+      where: { name: 'Ada' },
+      select: { id: true, versionNo: true },
+      orderBy: { versionNo: 'desc' } as never,
+    });
+    await repo.getThrowFirst({
+      where: { name: 'Ada' },
+      select: { id: true, versionNo: true },
+      orderBy: { versionNo: 'desc' } as never,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0].orderBy).toEqual({ versionNo: 'desc' });
+    expect(calls[1].orderBy).toEqual({ versionNo: 'desc' });
+  });
 });
