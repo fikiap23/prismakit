@@ -35,6 +35,19 @@ export interface CacheOptions {
    * Default `5`. Set `false` or `0` to disable.
    */
   writeGateTtlSeconds?: number | false;
+  /**
+   * Multi-tenant friendly invalidation. Default `false` (legacy behavior).
+   *
+   * When `true`, a mutation / `invalidateCache` that carries `tags` clears only:
+   * - query caches registered under those tags, and
+   * - query caches registered **without** tags (their scope is unknown),
+   *
+   * instead of every query cache of the model. Query caches tagged with other
+   * tags (e.g. another tenant's `cafe:<id>`) survive. The write gate is also
+   * scoped: per tag, per untagged-query bucket and per entity id, rather than
+   * per model. Mutations without tags keep clearing all model queries.
+   */
+  tagScopedInvalidation?: boolean;
 }
 
 export type InvalidateMode = 'all' | 'entity' | 'queries' | 'none';

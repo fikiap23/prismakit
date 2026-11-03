@@ -6,8 +6,16 @@
 const FNV_OFFSET = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 
-/** WeakMap cache: identical select object identity → hash string. */
+/**
+ * WeakMap cache: object identity → hash string. Only used for **frozen**
+ * objects — a mutable `select` / `where` reused and then mutated would keep its
+ * old hash and read another query's cache entry (wrong shape / wrong rows).
+ */
 const hashCache = new WeakMap<object, string>();
+
+function isCacheable(obj: unknown): obj is object {
+  return obj !== null && typeof obj === 'object' && Object.isFrozen(obj);
+}
 
 function sortDeep(value: unknown): unknown {
   if (value === null || value === undefined) return value;
@@ -36,21 +44,32 @@ function fnv1a64(input: string): string {
 }
 
 export function stableHash(obj: unknown): string {
-  if (obj !== null && typeof obj === 'object') {
-    const cached = hashCache.get(obj as object);
+  const cacheable = isCacheable(obj);
+  if (cacheable) {
+    const cached = hashCache.get(obj);
     if (cached) return cached;
   }
 
   const normalized = sortDeep(obj);
   const hash = fnv1a64(JSON.stringify(normalized));
 
-  if (obj !== null && typeof obj === 'object') {
-    hashCache.set(obj as object, hash);
-  }
+  if (cacheable) hashCache.set(obj, hash);
   return hash;
 }
 
-/** Pre-compute and cache hash for a known select preset object. */
+/**
+ * Pre-compute and cache hash for a select preset. Freezes `select` (deeply) so
+ * the cached hash can never go stale.
+ */
 export function precomputeSelectHash(select: object): string {
+  deepFreeze(select);
   return stableHash(select);
+}
+
+function deepFreeze(value: object): void {
+  if (Object.isFrozen(value)) return;
+  Object.freeze(value);
+  for (const child of Object.values(value)) {
+    if (child !== null && typeof child === 'object') deepFreeze(child);
+  }
 }

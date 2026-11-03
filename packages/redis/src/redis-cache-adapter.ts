@@ -13,15 +13,42 @@ import {
 
 const INDEX_TTL_BUFFER = 60;
 
-/** Lua: atomically SMEMBERS index + DEL members + index. */
+/**
+ * Lua: atomically SMEMBERS index + UNLINK members (batched, non-blocking
+ * reclaim) + index.
+ */
 const INVALIDATE_BY_INDEX_LUA = `
 local members = redis.call('SMEMBERS', KEYS[1])
-for i, member in ipairs(members) do
-  redis.call('DEL', member)
+for i = 1, #members, 500 do
+  redis.call('UNLINK', unpack(members, i, math.min(i + 499, #members)))
 end
-redis.call('DEL', KEYS[1])
+redis.call('UNLINK', KEYS[1])
 return #members
 `;
+
+/**
+ * Lua: SADD members, then only *extend* the index TTL. A plain EXPIRE would
+ * shrink it when a short-TTL entry (e.g. null cache) joins an index that still
+ * tracks long-TTL entries; the index would then expire first and those entries
+ * could no longer be invalidated (stale until their own TTL).
+ */
+const SADD_EXTEND_TTL_LUA = `
+redis.call('SADD', KEYS[1], unpack(ARGV, 2))
+local want = tonumber(ARGV[1])
+local current = redis.call('TTL', KEYS[1])
+if current < want then
+  redis.call('EXPIRE', KEYS[1], want)
+end
+return 1
+`;
+
+type RedisWithIndexCommands = Redis & {
+  prismakitSaddExtendTtl(
+    key: string,
+    ttlSeconds: number,
+    ...members: string[]
+  ): Promise<number>;
+};
 
 export type RedisCompression = 'none' | 'gzip';
 
@@ -52,9 +79,10 @@ const COMPRESSED_PREFIX = 'gz:';
  * Redis-backed {@link CacheAdapter}. Framework-agnostic — no NestJS / ConfigService.
  */
 export class RedisCacheAdapter implements CacheAdapter {
-  private readonly client: Redis;
+  private readonly client: RedisWithIndexCommands;
   private readonly prefix: string;
   private ready = false;
+  private readonly readyListeners: Array<() => void> = [];
   private readonly compression: RedisCompression;
   private readonly compressionThreshold: number;
   private readonly jsonOptions: RedisJsonOptions;
@@ -80,12 +108,23 @@ export class RedisCacheAdapter implements CacheAdapter {
       setTaggedJsonOptions({ decimalFactory });
     }
     this.onError = onError;
-    this.client = url
+    this.client = (url
       ? new Redis(url, { lazyConnect: true })
-      : new Redis({ host, port, lazyConnect: true });
+      : new Redis({ host, port, lazyConnect: true })) as RedisWithIndexCommands;
+    this.client.defineCommand('prismakitSaddExtendTtl', {
+      numberOfKeys: 1,
+      lua: SADD_EXTEND_TTL_LUA,
+    });
 
     this.client.on('ready', () => {
       this.ready = true;
+      for (const listener of this.readyListeners) {
+        try {
+          listener();
+        } catch (err) {
+          this.report('onReady listener', err);
+        }
+      }
     });
     this.client.on('error', (err) => {
       this.ready = false;
@@ -128,6 +167,10 @@ export class RedisCacheAdapter implements CacheAdapter {
 
   isReady(): boolean {
     return this.ready;
+  }
+
+  onReady(listener: () => void): void {
+    this.readyListeners.push(listener);
   }
 
   getPrefix(): string {
@@ -190,10 +233,15 @@ export class RedisCacheAdapter implements CacheAdapter {
     ttlSeconds: number,
     indexKey: string,
   ): Promise<void> {
-    const pipeline = this.client.pipeline();
+    const pipeline = this.client.pipeline() as ReturnType<Redis['pipeline']> & {
+      prismakitSaddExtendTtl(key: string, ttl: number, ...m: string[]): unknown;
+    };
     pipeline.set(key, this.encode(value), 'EX', ttlSeconds);
-    pipeline.sadd(indexKey, key);
-    pipeline.expire(indexKey, ttlSeconds + INDEX_TTL_BUFFER);
+    pipeline.prismakitSaddExtendTtl(
+      indexKey,
+      ttlSeconds + INDEX_TTL_BUFFER,
+      key,
+    );
     await pipeline.exec();
   }
 
@@ -207,10 +255,11 @@ export class RedisCacheAdapter implements CacheAdapter {
     ttlSeconds: number,
   ): Promise<void> {
     if (members.length === 0) return;
-    const pipeline = this.client.pipeline();
-    pipeline.sadd(key, ...members);
-    pipeline.expire(key, ttlSeconds + INDEX_TTL_BUFFER);
-    await pipeline.exec();
+    await this.client.prismakitSaddExtendTtl(
+      key,
+      ttlSeconds + INDEX_TTL_BUFFER,
+      ...members,
+    );
   }
 
   async safeGet<T>(key: string): Promise<T | null> {

@@ -1,16 +1,21 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
-  assertLockPrerequisites,
   clearPrismaMeta,
-  getDatasourceProvider,
   loadPrismaMetaFromSchema,
   LockNotAvailableError,
-  parseDatasourceProvider,
-  queryRowForUpdate,
-  queryRowsForUpdate,
-  setDatasourceProvider,
   UnsupportedProviderError,
 } from '../../index';
+// Internal since 4.0 (not part of the public API)
+import {
+  getDatasourceProvider,
+  setDatasourceProvider,
+} from '../../schema/prisma-meta';
+import { parseDatasourceProvider } from '../../schema/parse-prisma-schema';
+import {
+  assertLockPrerequisites,
+  queryRowForUpdate,
+  queryRowsForUpdate,
+} from '../../lock/row-lock';
 import { createPgPrismaLike } from './pg-client';
 import { requireEnv } from './require-integration';
 import * as fs from 'node:fs';

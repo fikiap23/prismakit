@@ -1,3 +1,4 @@
+import type { CountResult } from './repository-api.type';
 import type { CacheOptions, InvalidateMode } from './cache-options.type';
 import type { CursorPage, PaginatedResult } from './paginated-result.type';
 import type {
@@ -188,13 +189,13 @@ export type RepositoryApiFromTypeMap<
     } & CacheQueryRead<TypeMapWhereInput<TTypeMap, TModel>, THasCache>,
   ): Promise<CursorPage<TypeMapGetPayload<TTypeMap, TModel, T>>>;
 
-  count(
+  count<S extends CountSelect<TTypeMap, TModel> | undefined = undefined>(
     args: {
       tx?: ClientLike;
       where?: TypeMapWhereInput<TTypeMap, TModel>;
-      select?: CountSelect<TTypeMap, TModel>;
+      select?: S;
     } & CacheQueryRead<TypeMapWhereInput<TTypeMap, TModel>, THasCache>,
-  ): Promise<number>;
+  ): Promise<CountResult<S>>;
 
   exists(
     args: {

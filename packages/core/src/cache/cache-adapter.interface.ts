@@ -30,6 +30,13 @@ export interface CacheAdapter {
    */
   onError?: (err: unknown, op?: string) => void;
 
+  /**
+   * Optional: register a listener fired each time the backend becomes ready
+   * again (e.g. Redis reconnect). Repositories use it to clear caches whose
+   * invalidation was skipped while the backend was unavailable.
+   */
+  onReady?(listener: () => void): void;
+
   // safe wrappers (fail-open)
   safeGet<T>(key: string): Promise<T | null>;
   safeSet(key: string, value: unknown, ttlSeconds: number): Promise<void>;

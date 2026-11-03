@@ -122,7 +122,23 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 | `defaultSetCache` | `false` | Reads cache unless caller passes `setCache: false`. |
 | `stampede` | see below | Per-repo stampede overrides. |
 | `strictInvalidation` | `false` | When true, invalidation failures rethrow. |
-| `writeGateTtlSeconds` | `5` | Block cache SET after invalidate (stale in-flight GET race). `false` / `0` disables. |
+| `writeGateTtlSeconds` | `5` | Block cache SET after invalidate (stale in-flight GET race), only for the scope that was invalidated (one entity / all entities / all queries / tag). `false` / `0` disables. |
+| `tagScopedInvalidation` | `false` | Multi-tenant mode. A write / `invalidateCache` **with `tags`** clears only those tags + untagged queries (other tenants' tagged caches survive), and the query write gate is per tag / untagged bucket instead of all queries. Writes without tags still clear all model queries. |
+
+#### Multi-tenant caching (`tagScopedInvalidation`)
+
+Tag every tenant read and every tenant write with the same tenant tag:
+
+```ts
+repo.getMany({ where: { idCafe }, setCache: true, cacheTags: [`cafe:${idCafe}`] });
+repo.updateById({ id, data, tags: [`cafe:${idCafe}`] });
+// after a transaction commits (tx skips invalidation):
+repo.invalidateCache({ tags: [`cafe:${idCafe}`] });
+```
+
+Only `cafe:<idCafe>` and untagged queries are cleared. A query cached under a
+*different* tag is assumed unaffected — do not enable this if one tenant's
+write can change another tenant's tagged query.
 
 ### `InvalidateMode`
 
@@ -142,6 +158,14 @@ await repo.invalidateCache({ id?: string; tags?: string[] });
 {prefix}:v2:repo:{model}:e:__idx
 {prefix}:v2:repo:{model}:q:__idx
 {prefix}:v2:repo:{model}:t:{tag}:__idx
+# write gates (armed after invalidate, scoped to what was cleared)
+{prefix}:v2:repo:{model}:g:q            # all queries
+{prefix}:v2:repo:{model}:g:e            # all entities
+{prefix}:v2:repo:{model}:g:e:{id}       # one entity
+# tagScopedInvalidation only
+{prefix}:v2:repo:{model}:q:__untagged_idx
+{prefix}:v2:repo:{model}:g:q:untagged
+{prefix}:v2:repo:{model}:g:t:{tag}
 ```
 
 Redis payloads use tagged JSON for `Date`, `BigInt`, `Bytes`, and `Decimal`. Pass `decimalFactory: (s) => new Prisma.Decimal(s)` on `RedisCacheAdapter` (and/or Nest `PrismaKitModule.forRoot`) so compose clone and cache hits return native Prisma scalars — `JSON.stringify` otherwise turns `Date`/`Decimal` into strings via `toJSON`.

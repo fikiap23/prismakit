@@ -296,8 +296,12 @@ describe('cache invalidation & key correctness', () => {
     expect(cache.keys().some((k) => k.includes(':e:u1:'))).toBe(true);
 
     await users.invalidateCache({ id: 'u1' });
+    // Gate is scoped to what was invalidated: entity u1 + all queries
     expect(
-      cache.keys().some((k) => k.endsWith(':user:__write_gate')),
+      cache.keys().some((k) => k.endsWith(':user:g:e:u1')),
+    ).toBe(true);
+    expect(
+      cache.keys().some((k) => k.endsWith(':user:g:q')),
     ).toBe(true);
     expect(cache.keys().filter((k) => k.includes(':e:u1:') && !k.includes('__idx'))).toEqual(
       [],
@@ -360,7 +364,7 @@ describe('cache invalidation & key correctness', () => {
       setCache: true,
     });
     await users.invalidateCache({ id: 'u1' });
-    expect(cache.keys().some((k) => k.includes('__write_gate'))).toBe(false);
+    expect(cache.keys().some((k) => k.includes(':user:g:'))).toBe(false);
 
     await users.getById({
       id: 'u1',

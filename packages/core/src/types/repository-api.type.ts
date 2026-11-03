@@ -44,6 +44,13 @@ type InvalidateCacheMethod<THasCache extends boolean> = THasCache extends true
 
 type CountSelect = object;
 
+/** Prisma `count({ select })` returns one number per selected field. */
+export type CountResult<S> = [S] extends [undefined]
+  ? number
+  : S extends object
+    ? { [K in keyof S]: number }
+    : number;
+
 /**
  * Public repository method surface for the strong types-bag API.
  *
@@ -157,13 +164,13 @@ export type RepositoryApi<
     } & CacheQueryRead<TWhereInput, THasCache>,
   ): Promise<CursorPage<ApplyRepoPayload<TPayload, T>>>;
 
-  count(
+  count<S extends CountSelect | undefined = undefined>(
     args: {
       tx?: ClientLike;
       where?: TWhereInput;
-      select?: CountSelect;
+      select?: S;
     } & CacheQueryRead<TWhereInput, THasCache>,
-  ): Promise<number>;
+  ): Promise<CountResult<S>>;
 
   exists(
     args: {

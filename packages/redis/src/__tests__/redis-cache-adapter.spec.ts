@@ -11,6 +11,7 @@ const mockClient = {
   sadd: vi.fn(),
   smembers: vi.fn(),
   pipeline: vi.fn(),
+  defineCommand: vi.fn(),
 };
 
 vi.mock('ioredis', () => ({
