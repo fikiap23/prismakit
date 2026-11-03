@@ -1,5 +1,12 @@
 # @prismakit/nestjs
 
+## 4.1.0
+
+### Patch Changes
+
+- Updated dependencies [508f639]
+  - @prismakit/core@4.1.0
+
 ## 4.0.3
 
 ### Patch Changes
