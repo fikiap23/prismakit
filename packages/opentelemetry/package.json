@@ -1,6 +1,6 @@
 {
   "name": "@prismakit/opentelemetry",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "description": "OpenTelemetry adapter for @prismakit/core telemetry events",
   "license": "Apache-2.0",
   "engines": {
