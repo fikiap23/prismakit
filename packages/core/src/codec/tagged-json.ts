@@ -29,13 +29,26 @@ export function getTaggedJsonOptions(): TaggedJsonOptions {
   return codecOptions;
 }
 
+/** Buffer (Prisma ≤5 Bytes) or plain Uint8Array (Prisma 6+ Bytes). */
+function isBytes(value: unknown): value is Uint8Array {
+  return value instanceof Uint8Array;
+}
+
+function bytesToBase64(value: Uint8Array): string {
+  return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString(
+    'base64',
+  );
+}
+
+let warnedDecimalWithoutFactory = false;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
     !(value instanceof Date) &&
-    !(typeof Buffer !== 'undefined' && Buffer.isBuffer(value))
+    !isBytes(value)
   );
 }
 
@@ -60,9 +73,10 @@ export function taggedJsonReplacer(_key: string, value: unknown): unknown {
   if (value instanceof Date) {
     return { [DATE_TAG]: value.toISOString() };
   }
-  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) {
-    return { [BYTES_TAG]: value.toString('base64') };
+  if (isBytes(value)) {
+    return { [BYTES_TAG]: bytesToBase64(value) };
   }
+  // Standalone JSON.stringify(value, taggedJsonReplacer): Buffer#toJSON already ran
   if (
     value &&
     typeof value === 'object' &&
@@ -96,16 +110,32 @@ export function taggedJsonStringify(value: unknown): string {
     if (isDecimalLike(raw)) {
       return taggedJsonReplacer(key, raw);
     }
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(raw)) {
+    if (isBytes(raw)) {
       return taggedJsonReplacer(key, raw);
     }
-    return taggedJsonReplacer(key, val);
+    if (typeof val === 'bigint') {
+      return taggedJsonReplacer(key, val);
+    }
+    // Real Bytes were handled via `raw` above. Do not run the `{ type: 'Buffer' }`
+    // heuristic here: a Json column with that shape must stay a plain object.
+    return val;
   });
 }
 
 /** JSON.parse reviver — restore tagged payloads from {@link taggedJsonStringify}. */
 export function createTaggedJsonReviver(options: TaggedJsonOptions = {}) {
-  const decimalFactory = options.decimalFactory ?? ((s: string) => s);
+  const decimalFactory =
+    options.decimalFactory ??
+    ((s: string) => {
+      if (!warnedDecimalWithoutFactory) {
+        warnedDecimalWithoutFactory = true;
+        console.warn(
+          '[PrismaKit] Decimal revived from cache as string because no decimalFactory is configured; ' +
+            'a cache MISS returns Prisma.Decimal. Pass `decimalFactory: (s) => new Prisma.Decimal(s)`.',
+        );
+      }
+      return s;
+    });
   return (_key: string, value: unknown): unknown => {
     if (!isPlainObject(value)) return value;
     const keys = Object.keys(value);

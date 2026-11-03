@@ -1,7 +1,16 @@
-import type { CacheAdapter } from '@prismakit/core';
+import {
+  taggedJsonParse,
+  taggedJsonStringify,
+  type CacheAdapter,
+} from '@prismakit/core';
 
 type Entry = {
-  value: unknown;
+  /**
+   * Tagged-JSON payload, same codec as Redis: Date / Decimal / BigInt / Bytes
+   * round-trip identically (structuredClone turns Prisma Decimal into a plain
+   * object).
+   */
+  value: string;
   expiresAt: number;
 };
 
@@ -73,13 +82,13 @@ export class MemoryCacheAdapter implements CacheAdapter {
       this.store.delete(key);
       return null;
     }
-    return structuredClone(entry.value) as T;
+    return taggedJsonParse<T>(entry.value);
   }
 
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     const ttl = ttlSeconds > 0 ? ttlSeconds : this.defaultTtl;
     this.store.set(key, {
-      value: structuredClone(value),
+      value: taggedJsonStringify(value),
       expiresAt: this.now() + ttl * 1000,
     });
     this.evictIfNeeded();

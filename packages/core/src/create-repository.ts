@@ -5,8 +5,13 @@ import {
   entityIndexKey,
   entityAllIndexKey,
   queryIndexKey,
+  entitiesWriteGateKey,
+  entityWriteGateKey,
   tagIndexKey,
-  writeGateKey,
+  tagWriteGateKey,
+  untaggedQueryIndexKey,
+  untaggedQueryWriteGateKey,
+  queriesWriteGateKey,
 } from './cache/cache-key.util';
 import { selectIncludesSensitiveField } from './cache/cache-guard.util';
 import { applyJitter } from './cache/ttl-jitter.util';
@@ -65,6 +70,34 @@ function isNullSentinel(v: unknown): boolean {
     (v as { __prismakit_null?: boolean }).__prismakit_null === true
   );
 }
+/**
+ * `count()` → number; `count({ select })` → `{ field: number }` (as Prisma).
+ * Same shape on cache hit and miss.
+ */
+function normalizeCount(result: unknown, select?: object): any {
+  if (select) return result ?? {};
+  if (typeof result === 'number') return result;
+  if (typeof result === 'bigint') return Number(result);
+  return result == null ? 0 : Number(result);
+}
+
+/**
+ * Per Prisma client / transaction identity for in-process singleflight keys.
+ * Without it, identical reads from different transactions (or different
+ * PrismaClients, e.g. DB-per-tenant) would share one DB result.
+ */
+const clientScopeIds = new WeakMap<object, number>();
+let nextClientScopeId = 0;
+function clientScope(prisma: unknown, tx?: unknown): number {
+  const client = (tx ?? prisma) as object;
+  let id = clientScopeIds.get(client);
+  if (id === undefined) {
+    id = ++nextClientScopeId;
+    clientScopeIds.set(client, id);
+  }
+  return id;
+}
+
 const DEFAULT_CACHE_TTL = 86400;
 const DEFAULT_WRITE_GATE_TTL_SECONDS = 5;
 
@@ -357,6 +390,7 @@ function createRepositoryImpl<
   const defaultSetCache = cacheOpts?.defaultSetCache === true;
   const stampedeOpts = resolveStampedeOptions(cacheOpts?.stampede);
   const writeGateTtlSeconds = resolveWriteGateTtlSeconds(cacheOpts);
+  const tagScopedInvalidation = cacheOpts?.tagScopedInvalidation === true;
 
   if (lockConfig) {
     validateLockConfig(lockConfig);
@@ -383,8 +417,46 @@ function createRepositoryImpl<
     return !!cache && cache.isReady();
   }
 
+  /**
+   * A write that could not reach the cache (adapter not ready, e.g. Redis
+   * reconnecting) leaves entries that would be served stale once the cache is
+   * back. Track it and clear the whole model cache on recovery.
+   */
+  let missedInvalidation = false;
+  let recovering: Promise<void> | null = null;
+
   function canInvalidate(cache?: CacheAdapter): cache is CacheAdapter {
-    return cacheConfigured && canUseCache(cache);
+    if (!cacheConfigured || !cache) return false;
+    if (!cache.isReady()) {
+      if (!missedInvalidation) {
+        missedInvalidation = true;
+        emitTelemetry({
+          type: 'cache.invalidate',
+          model: modelName,
+          detail: 'missed:cache-not-ready',
+        });
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /** Concurrent callers share one recovery; reads await it before using the cache. */
+  function recoverMissedInvalidation(cache: CacheAdapter): Promise<void> {
+    if (recovering) return recovering;
+    if (!missedInvalidation || !cache.isReady()) return Promise.resolve();
+    missedInvalidation = false;
+    recovering = (async () => {
+      try {
+        // No write gate: while the cache was not ready no read could SET,
+        // so there is no stale in-flight write to block.
+        await doInvalidateAllEntities(cache, false);
+        await doInvalidateQueries(cache, false);
+      } finally {
+        recovering = null;
+      }
+    })();
+    return recovering;
   }
 
   function resolveSetCache(setCache?: boolean): boolean | undefined {
@@ -423,6 +495,33 @@ function createRepositoryImpl<
     cacheKey: string,
   ): Promise<void> {
     await cache.safeDel(`${cacheKey}:lock`);
+  }
+
+  /**
+   * Releases the stampede lock taken by a cache MISS when the DB read throws,
+   * so waiters on other instances do not stall until `lockTtl`.
+   */
+  async function guardQueryLock<R>(
+    cache: CacheAdapter | undefined,
+    useCache: boolean,
+    method: CacheMethod,
+    params: Record<string, unknown>,
+    fn: () => Promise<R>,
+  ): Promise<R> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (useCache && cache) {
+        const key = buildQueryKey({
+          prefix: getPrefix(cache),
+          model: modelName,
+          method,
+          params,
+        });
+        await releaseLock(cache, key);
+      }
+      throw err;
+    }
   }
 
   function sleep(ms: number): Promise<void> {
@@ -478,6 +577,7 @@ function createRepositoryImpl<
       select,
     });
 
+    await recoverMissedInvalidation(cache);
     return singleflight(`entity:${key}`, async () => {
       const raw = await cache.safeGet<unknown>(key);
       if (raw !== null) {
@@ -523,7 +623,12 @@ function createRepositoryImpl<
       method,
       select,
     });
-    if (await isWriteGated(cache)) {
+    if (
+      await isWriteGated(cache, [
+        entitiesWriteGateKey(prefix, modelName),
+        entityWriteGateKey(prefix, modelName, idKey),
+      ])
+    ) {
       emitTelemetry({
         type: 'cache.write_gated',
         model: modelName,
@@ -563,6 +668,7 @@ function createRepositoryImpl<
       params,
     });
 
+    await recoverMissedInvalidation(cache);
     return singleflight(`query:${key}`, async () => {
       const raw = await cache.safeGet<unknown>(key);
       if (raw !== null) {
@@ -610,7 +716,16 @@ function createRepositoryImpl<
   ): Promise<void> {
     const prefix = getPrefix(cache);
     const key = buildQueryKey({ prefix, model: modelName, method, params });
-    if (await isWriteGated(cache)) {
+    const hasTags = !!tags && tags.length > 0;
+    const gates = [queriesWriteGateKey(prefix, modelName)];
+    if (tagScopedInvalidation) {
+      if (hasTags) {
+        gates.push(...tags!.map((tag) => tagWriteGateKey(prefix, modelName, tag)));
+      } else {
+        gates.push(untaggedQueryWriteGateKey(prefix, modelName));
+      }
+    }
+    if (await isWriteGated(cache, gates)) {
       emitTelemetry({
         type: 'cache.write_gated',
         model: modelName,
@@ -623,9 +738,9 @@ function createRepositoryImpl<
     const isNull = result === null || result === undefined;
     const ttl = applyJitter(isNull ? defaultNullTtl : getMethodTtl(method));
 
-    if (tags && tags.length > 0) {
+    if (hasTags) {
       await cache.safeSet(key, isNull ? NULL_SENTINEL : result, ttl);
-      await registerQueryWithTags(cache, key, ttl, tags);
+      await registerQueryWithTags(cache, key, ttl, tags!);
       // Also register in the model query index so default mutations clear tags
       await cache.safeSaddAndExpire(
         queryIndexKey(prefix, modelName),
@@ -640,25 +755,36 @@ function createRepositoryImpl<
         ttl,
         idxKey,
       );
+      if (tagScopedInvalidation) {
+        // Scope unknown → tag-scoped invalidation must still clear it
+        await cache.safeSaddAndExpire(
+          untaggedQueryIndexKey(prefix, modelName),
+          [key],
+          ttl + 60,
+        );
+      }
     }
     await releaseLock(cache, key);
   }
 
-  async function armWriteGate(cache: CacheAdapter): Promise<void> {
-    if (writeGateTtlSeconds == null) return;
-    await cache.safeSet(
-      writeGateKey(getPrefix(cache), modelName),
-      '1',
-      writeGateTtlSeconds,
+  async function armWriteGate(
+    cache: CacheAdapter,
+    keys: string[],
+  ): Promise<void> {
+    if (writeGateTtlSeconds == null || keys.length === 0) return;
+    await Promise.all(
+      keys.map((key) => cache.safeSet(key, '1', writeGateTtlSeconds)),
     );
   }
 
-  async function isWriteGated(cache: CacheAdapter): Promise<boolean> {
-    if (writeGateTtlSeconds == null) return false;
-    const gated = await cache.safeGet(
-      writeGateKey(getPrefix(cache), modelName),
-    );
-    return gated != null;
+  /** True when any of the gates covering this cache SET is armed. */
+  async function isWriteGated(
+    cache: CacheAdapter,
+    keys: string[],
+  ): Promise<boolean> {
+    if (writeGateTtlSeconds == null || keys.length === 0) return false;
+    const gates = await Promise.all(keys.map((key) => cache.safeGet(key)));
+    return gates.some((gated) => gated != null);
   }
 
   async function doInvalidateEntity(
@@ -672,7 +798,9 @@ function createRepositoryImpl<
       await cache.safeInvalidateByIndex(idxKey);
     }
     await cache.safeDel(`__setmeta:${idxKey}`);
-    await armWriteGate(cache);
+    await armWriteGate(cache, [
+      entityWriteGateKey(getPrefix(cache), modelName, id),
+    ]);
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -680,14 +808,19 @@ function createRepositoryImpl<
     });
   }
 
-  async function doInvalidateQueries(cache: CacheAdapter): Promise<void> {
+  async function doInvalidateQueries(
+    cache: CacheAdapter,
+    armGate = true,
+  ): Promise<void> {
     const idxKey = queryIndexKey(getPrefix(cache), modelName);
     if (cacheOpts?.strictInvalidation && (cache as any).invalidateByIndex) {
       await (cache as any).invalidateByIndex(idxKey);
     } else {
       await cache.safeInvalidateByIndex(idxKey);
     }
-    await armWriteGate(cache);
+    if (armGate) {
+      await armWriteGate(cache, [queriesWriteGateKey(getPrefix(cache), modelName)]);
+    }
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -711,7 +844,12 @@ function createRepositoryImpl<
         await invalidateFn(idxKey);
       }),
     );
-    await armWriteGate(cache);
+    await armWriteGate(
+      cache,
+      tagScopedInvalidation
+        ? tags.map((tag) => tagWriteGateKey(prefix, modelName, tag))
+        : [queriesWriteGateKey(prefix, modelName)],
+    );
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -719,14 +857,45 @@ function createRepositoryImpl<
     });
   }
 
-  async function doInvalidateAllEntities(cache: CacheAdapter): Promise<void> {
+  /** Tag-scoped mode: clears only query caches stored without tags. */
+  async function doInvalidateUntaggedQueries(
+    cache: CacheAdapter,
+  ): Promise<void> {
+    const prefix = getPrefix(cache);
+    const idxKey = untaggedQueryIndexKey(prefix, modelName);
+    if (cacheOpts?.strictInvalidation && (cache as any).invalidateByIndex) {
+      await (cache as any).invalidateByIndex(idxKey);
+    } else {
+      await cache.safeInvalidateByIndex(idxKey);
+    }
+    await armWriteGate(cache, [untaggedQueryWriteGateKey(prefix, modelName)]);
+    emitTelemetry({
+      type: 'cache.invalidate',
+      model: modelName,
+      detail: 'queries:untagged',
+    });
+  }
+
+  /** Query invalidation that accompanies a tagged mutation. */
+  function doInvalidateQueriesForTags(cache: CacheAdapter): Promise<void> {
+    return tagScopedInvalidation
+      ? doInvalidateUntaggedQueries(cache)
+      : doInvalidateQueries(cache);
+  }
+
+  async function doInvalidateAllEntities(
+    cache: CacheAdapter,
+    armGate = true,
+  ): Promise<void> {
     const allIdx = entityAllIndexKey(getPrefix(cache), modelName);
     const entityIdxKeys = await cache.safeSmembers(allIdx);
     await Promise.all(
       entityIdxKeys.map((idxKey) => cache.safeInvalidateByIndex(idxKey)),
     );
     await cache.safeDel(allIdx, `__setmeta:${allIdx}`);
-    await armWriteGate(cache);
+    if (armGate) {
+      await armWriteGate(cache, [entitiesWriteGateKey(getPrefix(cache), modelName)]);
+    }
     emitTelemetry({
       type: 'cache.invalidate',
       model: modelName,
@@ -740,11 +909,12 @@ function createRepositoryImpl<
     id?: string,
     tags?: string[] | null,
   ): Promise<void> {
+    await recoverMissedInvalidation(cache);
     if (Array.isArray(tags) && tags.length > 0) {
       if (id) await doInvalidateEntity(cache, id);
       await Promise.all([
         doInvalidateTags(cache, tags),
-        doInvalidateQueries(cache),
+        doInvalidateQueriesForTags(cache),
       ]);
       return;
     }
@@ -814,6 +984,12 @@ function createRepositoryImpl<
         (deps.cache as any).onError = (err: unknown, op: string) => {
           emitTelemetry({ type: 'cache.error', model: modelName, detail: op, error: err });
         };
+      }
+      const cache = deps.cache;
+      if (cacheConfigured && cache?.onReady) {
+        cache.onReady(() => {
+          void recoverMissedInvalidation(cache);
+        });
       }
     }
 
@@ -902,9 +1078,12 @@ function createRepositoryImpl<
       tags?: string[];
     }): Promise<void> {
       if (!canInvalidate(this.deps.cache)) return;
+      await recoverMissedInvalidation(this.deps.cache);
       if (opts?.id) await doInvalidateEntity(this.deps.cache, opts.id);
       if (opts?.tags && opts.tags.length > 0) {
         await doInvalidateTags(this.deps.cache, opts.tags);
+        await doInvalidateQueriesForTags(this.deps.cache);
+        return;
       }
       await doInvalidateQueries(this.deps.cache);
     }
@@ -1053,7 +1232,7 @@ function createRepositoryImpl<
               method: 'getById',
               select: dbSelect,
             });
-            const result = await singleflight(`db:entity:${entityKey}`, async () => {
+            const result = await singleflight(`db:entity:${clientScope(this.deps.prisma, tx)}:${entityKey}`, async () => {
               const row = await timedQuery('getById', () =>
                 getModel(this.deps.prisma, tx).findUnique({
                   where: idWhere(primaryKey, id),
@@ -1178,7 +1357,7 @@ function createRepositoryImpl<
               method: 'getThrowById',
               select: dbSelect,
             });
-            const result = await singleflight(`db:entity:${entityKey}`, async () => {
+            const result = await singleflight(`db:entity:${clientScope(this.deps.prisma, tx)}:${entityKey}`, async () => {
               const row = await timedQuery('getThrowById', () =>
                 getModel(this.deps.prisma, tx).findUniqueOrThrow({
                   where: idWhere(primaryKey, id),
@@ -1287,14 +1466,14 @@ function createRepositoryImpl<
         }
 
         const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getFirst', params });
-        const result = await singleflight(`db:query:${queryKey}`, async () => {
-          const row = await timedQuery('getFirst', () =>
+        const result = await singleflight(`db:query:${clientScope(this.deps.prisma, tx)}:${queryKey}`, async () => {
+          const row = await guardQueryLock(this.deps.cache, useCache, 'getFirst', params, () => timedQuery('getFirst', () =>
             getModel(this.deps.prisma, tx).findFirst({
               where,
               select: dbSelect,
               orderBy,
             }),
-          );
+          ));
           if (useCache) {
             const resolvedTags = resolveTags(where, cacheTags as any);
             await cacheSetQuery(
@@ -1397,8 +1576,8 @@ function createRepositoryImpl<
         }
 
         const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getMany', params });
-        const results = await singleflight(`db:query:${queryKey}`, async () => {
-          const rows = await timedQuery('getMany', () =>
+        const results = await singleflight(`db:query:${clientScope(this.deps.prisma, tx)}:${queryKey}`, async () => {
+          const rows = await guardQueryLock(this.deps.cache, useCache, 'getMany', params, () => timedQuery('getMany', () =>
             getModel(this.deps.prisma, tx).findMany({
               where,
               select: dbSelect,
@@ -1406,7 +1585,7 @@ function createRepositoryImpl<
               take,
               skip,
             }),
-          );
+          ));
           if (useCache) {
             const resolvedTags = resolveTags(where, cacheTags as any);
             await cacheSetQuery(
@@ -1487,13 +1666,13 @@ function createRepositoryImpl<
           });
         }
 
-        const result = (await timedQuery('getManyPaginate', () =>
+        const result = (await guardQueryLock(this.deps.cache, useCache, 'getManyPaginate', params, () => timedQuery('getManyPaginate', () =>
           paginate(
             getModel(this.deps.prisma, tx),
             { where, select: dbSelect, orderBy },
             { page, perPage: pageSize },
           ),
-        )) as PaginatedResult<unknown>;
+        ))) as PaginatedResult<unknown>;
 
         if (useCache) {
           const resolvedTags = resolveTags(where, cacheTags as any);
@@ -1805,7 +1984,7 @@ function createRepositoryImpl<
 
           try {
             const queryKey = buildQueryKey({ prefix: useCache ? getPrefix(this.deps.cache!) : '', model: modelName, method: 'getThrowFirst', params });
-            const result = await singleflight(`db:query:${queryKey}`, async () => {
+            const result = await singleflight(`db:query:${clientScope(this.deps.prisma, tx)}:${queryKey}`, async () => {
               const row = await timedQuery('getThrowFirst', () =>
                 getModel(this.deps.prisma, tx).findFirst({
                   where,
@@ -1868,20 +2047,20 @@ function createRepositoryImpl<
         if (cached.hit) {
           recordCacheDebug('count', 'HIT', modelName);
           emitTelemetry({ type: 'cache.hit', model: modelName, method: 'count' });
-          return cached.data ?? 0;
+          return normalizeCount(cached.data, select);
         }
         recordCacheDebug('count', 'MISS', modelName);
         emitTelemetry({ type: 'cache.miss', model: modelName, method: 'count' });
       }
 
-      const result = await timedQuery('count', () =>
+      const result = await guardQueryLock(this.deps.cache, useCache, 'count', params, () => timedQuery('count', () =>
         getModel(this.deps.prisma, tx).count({ where, select }),
-      );
+      ));
       if (useCache) {
         const resolvedTags = resolveTags(where, cacheTags as any);
         await cacheSetQuery(this.deps.cache!, 'count', params, result, resolvedTags);
       }
-      return typeof result === 'number' ? result : Number(result);
+      return normalizeCount(result, select);
     }
 
     async exists({
@@ -1915,9 +2094,9 @@ function createRepositoryImpl<
         emitTelemetry({ type: 'cache.miss', model: modelName, method: 'exists' });
       }
 
-      const n = await timedQuery('exists', () =>
+      const n = await guardQueryLock(this.deps.cache, useCache, 'exists', params, () => timedQuery('exists', () =>
         getModel(this.deps.prisma, tx).count({ where, take: 1 }),
-      );
+      ));
       const result = n > 0;
       if (useCache) {
         const resolvedTags = resolveTags(where, cacheTags as any);
@@ -1965,9 +2144,9 @@ function createRepositoryImpl<
         emitTelemetry({ type: 'cache.miss', model: modelName, method: 'aggregate' });
       }
 
-      const result = await timedQuery('aggregate', () =>
+      const result = await guardQueryLock(this.deps.cache, useCache, 'aggregate', params, () => timedQuery('aggregate', () =>
         delegate.aggregate!({ where, ...rest }),
-      );
+      ));
       if (useCache) {
         const resolvedTags = resolveTags(where, cacheTags as any);
         await cacheSetQuery(this.deps.cache!, 'aggregate', params, result, resolvedTags);
@@ -2012,9 +2191,9 @@ function createRepositoryImpl<
         emitTelemetry({ type: 'cache.miss', model: modelName, method: 'groupBy' });
       }
 
-      const result = await timedQuery('groupBy', () =>
+      const result = await guardQueryLock(this.deps.cache, useCache, 'groupBy', params, () => timedQuery('groupBy', () =>
         delegate.groupBy!(rest),
-      );
+      ));
       if (useCache) {
         const resolvedTags = resolveTags((rest as any).where, cacheTags as any);
         await cacheSetQuery(this.deps.cache!, 'groupBy', params, result, resolvedTags);
@@ -2094,9 +2273,9 @@ function createRepositoryImpl<
             findManyArgs.skip = skip;
           }
 
-          const rows = await timedQuery('getManyCursor', () =>
+          const rows = await guardQueryLock(this.deps.cache, useCache, 'getManyCursor', params, () => timedQuery('getManyCursor', () =>
             getModel(this.deps.prisma, tx).findMany(findManyArgs),
-          );
+          ));
 
           const hasMore = rows.length > take;
           const data = hasMore ? rows.slice(0, take) : rows;

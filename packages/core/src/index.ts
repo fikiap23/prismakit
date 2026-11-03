@@ -13,6 +13,7 @@ export {
 } from './create-repository';
 
 export type {
+  CountResult,
   RepositoryApi,
 } from './types/repository-api.type';
 

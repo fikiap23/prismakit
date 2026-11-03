@@ -72,4 +72,22 @@ describe('cloneWithCodec', () => {
     expect(cloned.grandTotal).toBeInstanceOf(Decimal);
     expect(cloned.grandTotal.toFixed()).toBe('85.00');
   });
+
+  it('round-trips Prisma 6 Bytes (plain Uint8Array) as bytes', () => {
+    const data = new Uint8Array([1, 2, 255]);
+    const parsed = taggedJsonParse<{ data: Uint8Array }>(
+      taggedJsonStringify({ data }),
+    );
+    expect(parsed.data).toBeInstanceOf(Uint8Array);
+    expect([...parsed.data]).toEqual([1, 2, 255]);
+  });
+
+  it('keeps a Json column shaped like a serialized Buffer as a plain object', () => {
+    const meta = { type: 'Buffer', data: [1, 2] };
+    const parsed = taggedJsonParse<{ meta: unknown }>(
+      taggedJsonStringify({ meta }),
+    );
+    expect(parsed.meta).toEqual({ type: 'Buffer', data: [1, 2] });
+    expect(Buffer.isBuffer(parsed.meta)).toBe(false);
+  });
 });
